@@ -1,0 +1,26 @@
+// Bedrock placement behavior shared by whichever generator is active.
+export const BLOCK_GENERATION_CONFIG = {
+  fallbackBlockTypeId: "minecraft:diamond_block",
+  deferredBlockTypeIds: [
+    "minecraft:flowing_water",
+    "minecraft:water",
+    "minecraft:flowing_lava",
+    "minecraft:lava",
+    "minecraft:sand",
+    "minecraft:gravel",
+    "minecraft:oak_leaves",
+    "minecraft:birch_leaves",
+    "minecraft:spruce_leaves",
+    "minecraft:tallgrass",
+    "minecraft:deadbush",
+    "minecraft:yellow_flower",
+    "minecraft:red_flower",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:reeds",
+    "minecraft:cactus",
+    "minecraft:snow_layer",
+    "minecraft:chest",
+    "minecraft:mob_spawner",
+  ],
+};
