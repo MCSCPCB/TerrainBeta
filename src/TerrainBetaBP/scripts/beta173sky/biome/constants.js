@@ -19,14 +19,18 @@ export const BLOCKS = Object.freeze({
   ICE: 79,
 });
 
-const SKY_SURFACE = Object.freeze({
-  top: BLOCKS.GRASS,
-  fill: BLOCKS.DIRT,
+export const DEFAULT_BIOME_SURFACE_CONFIG = Object.freeze({
+  SKY: Object.freeze({ top: "GRASS", fill: "DIRT" }),
 });
 
-export function getSurfaceForBiome(biomeId) {
-  if (biomeId === BIOME_IDS.SKY) {
-    return SKY_SURFACE;
-  }
-  return SKY_SURFACE;
+const DEFAULT_SKY_SURFACE_PALETTE = Object.freeze({
+  [BIOME_IDS.SKY]: Object.freeze({
+    top: BLOCKS.GRASS,
+    fill: BLOCKS.DIRT,
+  }),
+});
+
+export function getSurfaceForBiome(biomeId, surfacePalette = DEFAULT_SKY_SURFACE_PALETTE) {
+  const palette = surfacePalette ?? DEFAULT_SKY_SURFACE_PALETTE;
+  return palette[biomeId] ?? palette[BIOME_IDS.SKY];
 }

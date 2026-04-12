@@ -154,9 +154,11 @@ export class Beta173SkyBedrockGenerator {
       snow: options.snow ?? true,
       caveRange: options.caveRange ?? DEFAULT_CAVE_RANGE,
       farlandsCoordinate: options.farlandsCoordinate,
+      surfacePalette: options.surfacePalette ?? null,
     };
     this.generator = new Beta173SkyGenerator(seed, {
       farlandsCoordinate: this.options.farlandsCoordinate,
+      surfacePalette: this.options.surfacePalette,
     });
     this.baseChunkCache = new Map();
     this.terrainChunkCache = new Map();

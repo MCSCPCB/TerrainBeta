@@ -130,12 +130,14 @@ export class Beta173BedrockGenerator {
       snow: options.snow ?? true,
       caveRange: options.caveRange ?? DEFAULT_CAVE_RANGE,
       farlandsCoordinate: options.farlandsCoordinate,
+      surfacePalette: options.surfacePalette ?? null,
     };
     this.baseChunkCache = new Map();
     this.populationBiomeCache = new Map();
     this.populationClimateCache = new Map();
     this.generator = new Beta173Generator(seed, {
       farlandsCoordinate: this.options.farlandsCoordinate,
+      surfacePalette: this.options.surfacePalette,
     });
     this.populationRegionScratch = new Uint8Array(POPULATION_REGION_SIZE * POPULATION_REGION_SIZE * 128);
     this.treeNoise = new NoiseGeneratorOctaves2173(new JavaRandom(toJavaLong(seed)), 8);
@@ -298,6 +300,7 @@ export class Beta173BedrockGenerator {
           session.climateData,
           session.chunkX,
           session.chunkZ,
+          this.generator.surfacePalette,
         );
         session.phase = "surface";
         return true;

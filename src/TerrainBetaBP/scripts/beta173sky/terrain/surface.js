@@ -6,9 +6,9 @@ const CHUNK_X_SEED = 341873128712n;
 const CHUNK_Z_SEED = 132897987541n;
 
 function replaceSurfaceColumn(session, x, z) {
-  const { blocks, climateData, depthBuffer, random } = session;
+  const { blocks, climateData, depthBuffer, random, surfacePalette } = session;
   const biomeId = climateData.biomes[layerIndex(x, z)];
-  const surface = getSurfaceForBiome(biomeId);
+  const surface = getSurfaceForBiome(biomeId, surfacePalette);
   let surfaceDepth = Math.trunc(depthBuffer[layerIndex(x, z)] / 3.0 + 3.0 + random.nextDouble() * 0.25);
   let runDepth = -1;
   let topBlock = surface.top;
@@ -50,7 +50,7 @@ function replaceSurfaceColumn(session, x, z) {
   }
 }
 
-export function createSurfaceReplacementSession(blocks, generator, climateData, chunkX, chunkZ) {
+export function createSurfaceReplacementSession(blocks, generator, climateData, chunkX, chunkZ, surfacePalette = generator.surfacePalette ?? null) {
   const seed = BigInt.asIntN(
     64,
     BigInt(chunkX) * CHUNK_X_SEED + BigInt(chunkZ) * CHUNK_Z_SEED,
@@ -74,6 +74,7 @@ export function createSurfaceReplacementSession(blocks, generator, climateData, 
     climateData,
     depthBuffer,
     random: new JavaRandom(seed),
+    surfacePalette,
     x: 0,
     z: 0,
     complete: false,
@@ -103,8 +104,8 @@ export function advanceSurfaceReplacementSession(session, columnCount = 1) {
   return processed > 0;
 }
 
-export function replaceBlocksForBiomes(blocks, generator, climateData, chunkX, chunkZ) {
-  const session = createSurfaceReplacementSession(blocks, generator, climateData, chunkX, chunkZ);
+export function replaceBlocksForBiomes(blocks, generator, climateData, chunkX, chunkZ, surfacePalette = generator.surfacePalette ?? null) {
+  const session = createSurfaceReplacementSession(blocks, generator, climateData, chunkX, chunkZ, surfacePalette);
   while (advanceSurfaceReplacementSession(session)) {
     // Run the exact same deterministic state machine to completion for synchronous callers.
   }

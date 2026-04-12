@@ -14,6 +14,7 @@ export class Beta173Generator {
   constructor(seed, options = {}) {
     this.seed = toJavaLong(seed);
     this.farlandsCoordinate = options.farlandsCoordinate ?? DEFAULT_FARLANDS_COORDINATE;
+    this.surfacePalette = options.surfacePalette ?? null;
     setFarlandsCoordinate(this.farlandsCoordinate);
     setNoiseFarlandsCoordinate(this.farlandsCoordinate);
     this.terrainTables = initTerrainTables(this.seed);
@@ -48,7 +49,7 @@ export class Beta173Generator {
     const blocks = new Uint16Array(16 * 16 * 128);
 
     generateBaseTerrain(blocks, densityField, climateData);
-    replaceBlocksForBiomesExact(blocks, this.terrainTables, climateData, chunkX, chunkZ);
+    replaceBlocksForBiomesExact(blocks, this.terrainTables, climateData, chunkX, chunkZ, this.surfacePalette);
 
     return {
       chunkX,

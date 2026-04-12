@@ -10,6 +10,7 @@ export class Beta173SkyGenerator {
   constructor(seed, options = {}) {
     this.seed = toJavaLong(seed);
     this.farlandsCoordinate = options.farlandsCoordinate ?? DEFAULT_FARLANDS_COORDINATE;
+    this.surfacePalette = options.surfacePalette ?? null;
     this.random = new JavaRandom(this.seed);
     this.minLimitNoise = new NoiseGeneratorOctaves173(this.random, 16);
     this.maxLimitNoise = new NoiseGeneratorOctaves173(this.random, 16);
@@ -58,7 +59,7 @@ export class Beta173SkyGenerator {
     const blocks = new Uint16Array(16 * 16 * 128);
 
     generateBaseTerrain(blocks, densityField);
-    replaceBlocksForBiomes(blocks, this, climateData, chunkX, chunkZ);
+    replaceBlocksForBiomes(blocks, this, climateData, chunkX, chunkZ, this.surfacePalette);
 
     return {
       chunkX,

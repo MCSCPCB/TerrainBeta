@@ -39,20 +39,35 @@ export const BLOCKS = Object.freeze({
   ICE: 79,
 });
 
-const BIOME_SURFACES = [
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.SAND, fill: BLOCKS.SAND },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-  { top: BLOCKS.SAND, fill: BLOCKS.SAND },
-  { top: BLOCKS.GRASS, fill: BLOCKS.DIRT },
-];
+export const DEFAULT_BIOME_SURFACE_CONFIG = Object.freeze({
+  RAINFOREST: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  SWAMPLAND: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  SEASONAL_FOREST: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  FOREST: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  SAVANNA: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  SHRUBLAND: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  TAIGA: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  DESERT: Object.freeze({ top: "SAND", fill: "SAND" }),
+  PLAINS: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+  ICE_DESERT: Object.freeze({ top: "SAND", fill: "SAND" }),
+  TUNDRA: Object.freeze({ top: "GRASS", fill: "DIRT" }),
+});
 
-export function getSurfaceForBiome(biomeId) {
-  return BIOME_SURFACES[biomeId] ?? BIOME_SURFACES[BIOME_IDS.PLAINS];
+const DEFAULT_BIOME_SURFACE_PALETTE = Object.freeze([
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.SAND, fill: BLOCKS.SAND }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+  Object.freeze({ top: BLOCKS.SAND, fill: BLOCKS.SAND }),
+  Object.freeze({ top: BLOCKS.GRASS, fill: BLOCKS.DIRT }),
+]);
+
+export function getSurfaceForBiome(biomeId, surfacePalette = DEFAULT_BIOME_SURFACE_PALETTE) {
+  const palette = surfacePalette ?? DEFAULT_BIOME_SURFACE_PALETTE;
+  return palette[biomeId] ?? palette[BIOME_IDS.PLAINS];
 }

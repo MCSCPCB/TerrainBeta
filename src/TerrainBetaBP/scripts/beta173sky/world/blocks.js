@@ -33,6 +33,11 @@ export const EXTRA_BLOCKS = Object.freeze({
   SNOW_LAYER: 205,
 });
 
+export const BLOCK_ROLE_IDS = Object.freeze({
+  ...BLOCKS,
+  ...EXTRA_BLOCKS,
+});
+
 export const BEDROCK_BLOCK_MAP = Object.freeze({
   [EXTRA_BLOCKS.FLOWING_WATER]: "minecraft:flowing_water",
   [BLOCKS.AIR]: "minecraft:air",
@@ -75,3 +80,11 @@ export const BEDROCK_BLOCK_MAP = Object.freeze({
   [EXTRA_BLOCKS.SNOW_LAYER]: "minecraft:snow_layer",
   [BLOCKS.ICE]: "minecraft:ice",
 });
+
+export const DEFAULT_BLOCK_PALETTE = Object.freeze(
+  Object.fromEntries(
+    Object.entries(BLOCK_ROLE_IDS)
+      .filter(([, blockId]) => BEDROCK_BLOCK_MAP[blockId] !== undefined)
+      .map(([roleName, blockId]) => [roleName, BEDROCK_BLOCK_MAP[blockId]]),
+  ),
+);

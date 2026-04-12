@@ -21,12 +21,13 @@ function replaceBiomeSurfaceColumn(state, x) {
     sandField,
     gravelField,
     heightField,
+    surfacePalette,
   } = state;
 
   for (let z = 0; z < 16; z += 1) {
     const columnIndex = layerIndex(x, z);
     const noiseIndex = surfaceNoiseIndex(x, z);
-    const surface = getSurfaceForBiome(climateData.biomes[columnIndex]);
+    const surface = getSurfaceForBiome(climateData.biomes[columnIndex], surfacePalette);
     const sandy = sandField[noiseIndex] + surfaceRandom.nextDouble() * 0.2 > 0.0;
     const gravelly = gravelField[noiseIndex] + surfaceRandom.nextDouble() * 0.2 > 3.0;
     const elevation = Math.trunc(heightField[noiseIndex] / 3.0 + 3.0 + surfaceRandom.nextDouble() * 0.25);
@@ -92,7 +93,7 @@ function replaceBiomeSurfaceColumn(state, x) {
   }
 }
 
-export function createSurfaceReplacementSession(blocks, terrainTables, climateData, chunkX, chunkZ) {
+export function createSurfaceReplacementSession(blocks, terrainTables, climateData, chunkX, chunkZ, surfacePalette = null) {
   const surfaceRandom = new JavaRandom(BigInt.asIntN(64, BigInt(chunkX) * CHUNK_SEED_X + BigInt(chunkZ) * CHUNK_SEED_Z));
   const sandField = new Float64Array(256);
   const gravelField = new Float64Array(256);
@@ -142,6 +143,7 @@ export function createSurfaceReplacementSession(blocks, terrainTables, climateDa
     sandField,
     gravelField,
     heightField,
+    surfacePalette,
     cursorX: 0,
     complete: false,
   };
@@ -162,8 +164,15 @@ export function advanceSurfaceReplacementSession(session, columnCount = 1) {
   return true;
 }
 
-export function replaceBlocksForBiomesExact(blocks, terrainTables, climateData, chunkX, chunkZ) {
-  const session = createSurfaceReplacementSession(blocks, terrainTables, climateData, chunkX, chunkZ);
+export function replaceBlocksForBiomesExact(blocks, terrainTables, climateData, chunkX, chunkZ, surfacePalette = null) {
+  const session = createSurfaceReplacementSession(
+    blocks,
+    terrainTables,
+    climateData,
+    chunkX,
+    chunkZ,
+    surfacePalette,
+  );
   while (advanceSurfaceReplacementSession(session)) {
     // Run the exact same deterministic state machine to completion for synchronous callers.
   }

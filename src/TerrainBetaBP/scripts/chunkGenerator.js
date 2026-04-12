@@ -48,6 +48,7 @@ const INITIALIZATION_MAX_DURATION_MS = 60_000;
 const INITIALIZATION_PROGRESS_REPORT_INTERVAL_MS = 1_000;
 const INITIALIZATION_MAX_CHUNK_STEPS_PER_TICK = 32;
 const INITIALIZATION_PLAYER_LOADING_HEIGHT = 320;
+const INITIALIZATION_RETURN_SEARCH_COLUMNS_PER_TICK = 64;
 const CHUNK_STATUS_STORAGE_KEY = activeWorldGenerator.storageKey;
 const CHUNK_STATUS_STORAGE_BUCKET_COUNT = 256;
 const TERRAIN_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:terrain`;
@@ -81,6 +82,7 @@ const permutationCache = new Map();
 const pendingChunkTasks = new Map();
 const backgroundChunkTasks = new Map();
 const activeGenerator = activeWorldGenerator.generator;
+const initializationReturnColumnOrderCache = new Map();
 
 const unresolvedBlockTypeWarnings = new Set();
 const backgroundTickingAreaState = {
@@ -461,6 +463,179 @@ function getTopmostLandingLocation(dimension, x, z) {
   }
 }
 
+function teleportPlayerToLandingLocation(player, dimension, landingLocation, checkForBlocks = false) {
+  if (!landingLocation) {
+    return false;
+  }
+
+  if (checkForBlocks) {
+    return player.tryTeleport(
+      landingLocation,
+      {
+        dimension,
+        checkForBlocks: true,
+      },
+    );
+  }
+
+  player.teleport(
+    landingLocation,
+    {
+      dimension,
+      checkForBlocks: false,
+    },
+  );
+  return true;
+}
+
+function clampChunkLocalCoordinate(value) {
+  return Math.max(0, Math.min(CHUNK_SIZE - 1, value));
+}
+
+function getInitializationReturnColumnOrder(originX, originZ, chunkX, chunkZ) {
+  const preferredLocalX = clampChunkLocalCoordinate(Math.floor(originX) - chunkX * CHUNK_SIZE);
+  const preferredLocalZ = clampChunkLocalCoordinate(Math.floor(originZ) - chunkZ * CHUNK_SIZE);
+  const cacheKey = `${preferredLocalX}|${preferredLocalZ}`;
+  const cachedOrder = initializationReturnColumnOrderCache.get(cacheKey);
+  if (cachedOrder) {
+    return cachedOrder;
+  }
+
+  const positions = [];
+  for (let x = 0; x < CHUNK_SIZE; x += 1) {
+    for (let z = 0; z < CHUNK_SIZE; z += 1) {
+      positions.push({
+        x,
+        z,
+        distanceSquared: ((x - preferredLocalX) ** 2) + ((z - preferredLocalZ) ** 2),
+      });
+    }
+  }
+
+  positions.sort((left, right) => (
+    left.distanceSquared - right.distanceSquared
+    || left.x - right.x
+    || left.z - right.z
+  ));
+
+  const order = Object.freeze(positions.map((position) => Object.freeze({
+    x: position.x,
+    z: position.z,
+  })));
+  initializationReturnColumnOrderCache.set(cacheKey, order);
+  return order;
+}
+
+function createInitializationReturnSearchState(state) {
+  const returnChunk = getChunkForLocation(state);
+  return {
+    originChunkX: returnChunk.x,
+    originChunkZ: returnChunk.z,
+    radius: 0,
+    ringCursor: 0,
+    columnCursor: 0,
+  };
+}
+
+function getInitializationRingLength(radius) {
+  return radius === 0 ? 1 : radius * 8;
+}
+
+function normalizeInitializationReturnSearchState(searchState) {
+  while (searchState.ringCursor >= getInitializationRingLength(searchState.radius)) {
+    searchState.radius += 1;
+    searchState.ringCursor = 0;
+    searchState.columnCursor = 0;
+  }
+}
+
+function getInitializationReturnSearchTarget(searchState) {
+  normalizeInitializationReturnSearchState(searchState);
+  const ring = [];
+  appendInitializationTargetRing(
+    ring,
+    searchState.originChunkX,
+    searchState.originChunkZ,
+    searchState.radius,
+  );
+  return ring[searchState.ringCursor] ?? ring[0];
+}
+
+function advanceInitializationReturnSearchTarget(searchState) {
+  searchState.columnCursor = 0;
+  searchState.ringCursor += 1;
+  normalizeInitializationReturnSearchState(searchState);
+}
+
+function findInitializationLandingLocationInChunk(
+  dimension,
+  originX,
+  originZ,
+  chunkX,
+  chunkZ,
+  startCursor = 0,
+  columnBudget = INITIALIZATION_RETURN_SEARCH_COLUMNS_PER_TICK,
+) {
+  const columnOrder = getInitializationReturnColumnOrder(originX, originZ, chunkX, chunkZ);
+  const endCursor = Math.min(columnOrder.length, startCursor + columnBudget);
+
+  for (let cursor = startCursor; cursor < endCursor; cursor += 1) {
+    const column = columnOrder[cursor];
+    const landingLocation = getTopmostLandingLocation(
+      dimension,
+      chunkX * CHUNK_SIZE + column.x,
+      chunkZ * CHUNK_SIZE + column.z,
+    );
+    if (landingLocation) {
+      return {
+        landingLocation,
+        nextCursor: cursor + 1,
+        exhausted: true,
+      };
+    }
+  }
+
+  return {
+    landingLocation: null,
+    nextCursor: endCursor,
+    exhausted: endCursor >= columnOrder.length,
+  };
+}
+
+function shouldReplaceDefaultSpawnWithInitializationLanding(state, dimension, force = false) {
+  if (state.dimensionId !== "overworld") {
+    return false;
+  }
+
+  if (force) {
+    return true;
+  }
+
+  try {
+    const defaultSpawnLocation = world.getDefaultSpawnLocation();
+    return getTopmostLandingLocation(
+      dimension,
+      defaultSpawnLocation.x,
+      defaultSpawnLocation.z,
+    ) === null;
+  } catch (_error) {
+    return true;
+  }
+}
+
+function tryUpdateInitializationReturnSpawnLocation(state, dimension, landingLocation, force = false) {
+  if (!landingLocation || !shouldReplaceDefaultSpawnWithInitializationLanding(state, dimension, force)) {
+    return false;
+  }
+
+  try {
+    world.setDefaultSpawnLocation(landingLocation);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function isInitializationTargetComplete(dimension, target) {
   const chunkState = getChunkState(target.x, target.z);
   if (!chunkState.hasPopulatedChunk) {
@@ -486,29 +661,12 @@ function isPlayerAtInitializationLoadingHeight(player) {
 }
 
 function teleportPlayerToTopmostLanding(player, dimension, x, z, checkForBlocks = false) {
-  const landingLocation = getTopmostLandingLocation(dimension, x, z);
-  if (!landingLocation) {
-    return false;
-  }
-
-  if (checkForBlocks) {
-    return player.tryTeleport(
-      landingLocation,
-      {
-        dimension,
-        checkForBlocks: true,
-      },
-    );
-  }
-
-  player.teleport(
-    landingLocation,
-    {
-      dimension,
-      checkForBlocks: false,
-    },
+  return teleportPlayerToLandingLocation(
+    player,
+    dimension,
+    getTopmostLandingLocation(dimension, x, z),
+    checkForBlocks,
   );
-  return true;
 }
 
 function getBlockTypeId(blockId) {
@@ -1146,42 +1304,7 @@ function saveInitializationReturnState(player) {
 }
 
 function restoreInitializationReturnState(player) {
-  const state = getInitializationReturnState(player);
-  if (!state) {
-    return false;
-  }
-
-  const dimension = world.getDimension(state.dimensionId);
-  const returnChunk = getChunkForLocation(state);
-  const loadingLocation = getInitializationLoadingLocation(returnChunk.x, returnChunk.z);
-  const playerIsInReturnDimension = player.dimension.id === state.dimensionId;
-  const playerChunk = playerIsInReturnDimension ? getPlayerChunk(player) : null;
-  if (!populatedChunks.has(returnChunk.x, returnChunk.z)) {
-    if (
-      !playerIsInReturnDimension
-      || !playerChunk
-      || playerChunk.x !== returnChunk.x
-      || playerChunk.z !== returnChunk.z
-      || !isPlayerAtInitializationLoadingHeight(player)
-    ) {
-      player.teleport(
-        loadingLocation,
-        {
-          dimension,
-          checkForBlocks: false,
-        },
-      );
-    }
-
-    return false;
-  }
-
-  if (!teleportPlayerToTopmostLanding(player, dimension, state.x, state.z, false)) {
-    return false;
-  }
-
-  clearInitializationReturnState(player);
-  return true;
+  return advanceInitializationReturnState(player);
 }
 
 function clearInitializationAnchorState() {
@@ -2215,31 +2338,78 @@ function advanceInitializationChunkTarget(dimension, target) {
 function advanceInitializationReturnState(player) {
   const state = getInitializationReturnState(player);
   if (!state) {
-    return true;
+    return false;
   }
 
   const dimension = world.getDimension(state.dimensionId);
   const returnChunk = getChunkForLocation(state);
-  const target = {
-    key: chunkKey(returnChunk.x, returnChunk.z),
-    x: returnChunk.x,
-    z: returnChunk.z,
-  };
+  let searchState = state.landingSearch ?? null;
+  const target = searchState
+    ? getInitializationReturnSearchTarget(searchState)
+    : {
+      key: chunkKey(returnChunk.x, returnChunk.z),
+      x: returnChunk.x,
+      z: returnChunk.z,
+    };
 
   if (!ensureInitializationAnchorAtTarget(player, dimension, target)) {
+    if (searchState) {
+      setInitializationReturnState(player, state);
+    }
     return false;
   }
 
   if (state.dimensionId === "overworld" && !advanceInitializationChunkTarget(dimension, target)) {
+    if (searchState) {
+      setInitializationReturnState(player, state);
+    }
     return false;
   }
 
-  if (!teleportPlayerToTopmostLanding(player, dimension, state.x, state.z, false)) {
+  if (!searchState) {
+    const directLandingLocation = getTopmostLandingLocation(dimension, state.x, state.z);
+    if (teleportPlayerToLandingLocation(player, dimension, directLandingLocation, false)) {
+      tryUpdateInitializationReturnSpawnLocation(state, dimension, directLandingLocation, false);
+      clearInitializationReturnState(player);
+      return true;
+    }
+
+    state.landingSearch = createInitializationReturnSearchState(state);
+    searchState = state.landingSearch;
+  }
+
+  const searchTarget = getInitializationReturnSearchTarget(searchState);
+  if (searchTarget.x !== target.x || searchTarget.z !== target.z) {
+    setInitializationReturnState(player, state);
     return false;
   }
 
-  clearInitializationReturnState(player);
-  return true;
+  const searchResult = findInitializationLandingLocationInChunk(
+    dimension,
+    state.x,
+    state.z,
+    searchTarget.x,
+    searchTarget.z,
+    searchState.columnCursor,
+  );
+  if (searchResult.landingLocation) {
+    if (!teleportPlayerToLandingLocation(player, dimension, searchResult.landingLocation, false)) {
+      setInitializationReturnState(player, state);
+      return false;
+    }
+
+    tryUpdateInitializationReturnSpawnLocation(state, dimension, searchResult.landingLocation, true);
+    clearInitializationReturnState(player);
+    return true;
+  }
+
+  searchState.columnCursor = searchResult.nextCursor;
+  if (searchResult.exhausted) {
+    advanceInitializationReturnSearchTarget(searchState);
+  }
+
+  setInitializationReturnState(player, state);
+  return false;
 }
 
 function advanceInitializationAnchorMovement(players) {
