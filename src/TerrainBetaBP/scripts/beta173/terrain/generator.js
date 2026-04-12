@@ -4,6 +4,7 @@ import {
   initTerrainTables,
   setFarlandsCoordinate,
 } from "../reference/index.js";
+import { setNoiseFarlandsCoordinate } from "../utils/math.js";
 import { buildBiomeData } from "./biomes.js";
 import { buildHeightmap, validateChunkCoordinate } from "./chunk.js";
 import { generateBaseTerrain, generateDensityFieldExact } from "./density.js";
@@ -14,11 +15,13 @@ export class Beta173Generator {
     this.seed = toJavaLong(seed);
     this.farlandsCoordinate = options.farlandsCoordinate ?? DEFAULT_FARLANDS_COORDINATE;
     setFarlandsCoordinate(this.farlandsCoordinate);
+    setNoiseFarlandsCoordinate(this.farlandsCoordinate);
     this.terrainTables = initTerrainTables(this.seed);
   }
 
   applyRuntimeConfig() {
     setFarlandsCoordinate(this.farlandsCoordinate);
+    setNoiseFarlandsCoordinate(this.farlandsCoordinate);
   }
 
   generateBiomeData(chunkX, chunkZ) {

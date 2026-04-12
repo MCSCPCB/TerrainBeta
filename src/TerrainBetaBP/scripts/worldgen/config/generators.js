@@ -19,4 +19,21 @@ export const GENERATOR_CONFIGS = {
       caveRange: 8,
     },
   },
+  beta173sky: {
+    seed: "-1623774494",
+    storageKey: "beta173SkyGeneratedChunks",
+    farlandsCoordinate: 12550821,
+    options: {
+      caves: true,
+      dungeons: true,
+      clay: true,
+      ores: true,
+      lakes: true,
+      trees: true,
+      flora: true,
+      springs: true,
+      snow: true,
+      caveRange: 8,
+    },
+  },
 };

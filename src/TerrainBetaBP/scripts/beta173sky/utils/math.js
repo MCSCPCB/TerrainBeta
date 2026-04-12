@@ -31,14 +31,6 @@ export function setNoiseFarlandsCoordinate(coordinate = DEFAULT_FARLANDS_COORDIN
   farlandsConfig.intMin = -farlandsConfig.intMax - 1;
 }
 
-export function getNoiseFarlandsCoordinate() {
-  return farlandsConfig.coordinate;
-}
-
-export function clamp(value, min, max) {
-  return value < min ? min : value > max ? max : value;
-}
-
 export function javaIntCast(value) {
   if (Number.isNaN(value)) {
     return 0;
@@ -58,11 +50,6 @@ export function javaFloorToInt(value) {
     truncated = (truncated - 1) | 0;
   }
   return truncated;
-}
-
-export function simplexFloorToInt(value) {
-  const truncated = javaIntCast(value);
-  return value > 0.0 ? truncated : (truncated - 1) | 0;
 }
 
 export function lerp(amount, a, b) {

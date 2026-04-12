@@ -188,6 +188,7 @@ export class Beta173BedrockGenerator {
   }
 
   getBaseChunk(chunkX, chunkZ) {
+    this.generator.applyRuntimeConfig();
     const key = `${chunkX}|${chunkZ}`;
     return this.getCachedValue(
       this.baseChunkCache,
@@ -219,6 +220,7 @@ export class Beta173BedrockGenerator {
   }
 
   getPopulationClimate(chunkX, chunkZ) {
+    this.generator.applyRuntimeConfig();
     const key = `${chunkX}|${chunkZ}`;
     return this.getCachedValue(
       this.populationClimateCache,
