@@ -9,12 +9,20 @@ const BETA173_DIMENSIONS = Object.freeze({
   chunkHeight: 128,
   minWorldY: 0,
 });
+const BETA173_RUNTIME_PROFILE = Object.freeze({
+  initializationCompletionMode: "center_landing",
+  backgroundLookaheadChunks: 3,
+});
 
 export function createBeta173WorldGenerator(config) {
   return {
     id: "beta173",
     storageKey: config.storageKey ?? "beta173GeneratedChunks",
     dimensions: BETA173_DIMENSIONS,
+    runtimeProfile: {
+      ...BETA173_RUNTIME_PROFILE,
+      ...config.runtimeProfile,
+    },
     blocks: BLOCKS,
     blockTypeMap: BEDROCK_BLOCK_MAP,
     generator: new Beta173BedrockGenerator(

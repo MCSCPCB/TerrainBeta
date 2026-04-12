@@ -12,6 +12,7 @@ import {
 } from "./worldgen/index.js";
 
 const activeWorldGenerator = createConfiguredWorldGenerator();
+const activeRuntimeProfile = activeWorldGenerator.runtimeProfile ?? {};
 const BLOCKS = activeWorldGenerator.blocks;
 const BEDROCK_BLOCK_MAP = activeWorldGenerator.blockTypeMap;
 
@@ -38,7 +39,9 @@ const MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP = 4; // 3
 const MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION = 24; // 16
 const MAX_BACKGROUND_WORLD_WRITES_PER_TICK = 5;
 const MAX_BACKGROUND_DECORATION_PLANS_PER_TICK = 2;
-const BACKGROUND_LOOKAHEAD_CHUNKS = 3;
+const BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
+  ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
+  : 3;
 const BACKGROUND_IDLE_BUDGET_BOOST_TICKS = 20;
 const BACKGROUND_DEEP_IDLE_BUDGET_BOOST_TICKS = 60;
 const INITIALIZATION_MAX_DURATION_MS = 60_000;
@@ -58,6 +61,7 @@ const BACKGROUND_TICKINGAREA_NAME = `${CHUNK_STATUS_STORAGE_KEY}_background`
   .replace(/[^0-9A-Za-z_]/g, "_");
 const DETAIL_PHASE_TERRAIN = "terrain";
 const DETAIL_PHASE_COMPLETE = "complete";
+const INITIALIZATION_COMPLETION_MODE = activeRuntimeProfile.initializationCompletionMode ?? "center_landing";
 const WRITE_CATEGORY_STABLE = "stable";
 const WRITE_CATEGORY_DEFERRED = "deferred";
 const TREE_DECORATION_BLOCK_TYPE_IDS = new Set([
@@ -454,6 +458,26 @@ function getTopmostLandingLocation(dimension, x, z) {
     };
   } catch (_error) {
     return null;
+  }
+}
+
+function isInitializationTargetComplete(dimension, target) {
+  const chunkState = getChunkState(target.x, target.z);
+  if (!chunkState.hasPopulatedChunk) {
+    return false;
+  }
+
+  switch (INITIALIZATION_COMPLETION_MODE) {
+    case "populated":
+      return true;
+
+    case "center_landing":
+    default:
+      return getTopmostLandingLocation(
+        dimension,
+        getChunkCenterBlockX(target.x),
+        getChunkCenterBlockZ(target.z),
+      ) !== null;
   }
 }
 
@@ -2265,10 +2289,8 @@ function* initializationGenerationJob() {
       continue;
     }
 
-    const targetCenterX = getChunkCenterBlockX(currentTarget.x);
-    const targetCenterZ = getChunkCenterBlockZ(currentTarget.z);
     if (getChunkState(currentTarget.x, currentTarget.z).hasPopulatedChunk) {
-      if (getTopmostLandingLocation(dimension, targetCenterX, targetCenterZ)) {
+      if (isInitializationTargetComplete(dimension, currentTarget)) {
         recordInitializationChunkCompletion();
         advanceInitializationAnchorTarget();
       }
@@ -2278,7 +2300,7 @@ function* initializationGenerationJob() {
 
     if (
       advanceInitializationChunkTarget(dimension, currentTarget)
-      && getTopmostLandingLocation(dimension, targetCenterX, targetCenterZ)
+      && isInitializationTargetComplete(dimension, currentTarget)
     ) {
       recordInitializationChunkCompletion();
       advanceInitializationAnchorTarget();

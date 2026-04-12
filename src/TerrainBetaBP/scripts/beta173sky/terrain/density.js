@@ -146,8 +146,10 @@ export function generateDensityField(generator, climateData, chunkX, chunkZ, buf
   return noise;
 }
 
-export function generateBaseTerrain(blocks, densityField) {
-  for (let cellX = 0; cellX < 2; cellX += 1) {
+export function generateBaseTerrainCellColumns(blocks, densityField, startCellX = 0, cellColumnCount = 2) {
+  const endCellX = Math.min(2, startCellX + cellColumnCount);
+
+  for (let cellX = startCellX; cellX < endCellX; cellX += 1) {
     for (let cellZ = 0; cellZ < 2; cellZ += 1) {
       for (let cellY = 0; cellY < 32; cellY += 1) {
         let densityNW = densityField[((cellX + 0) * 3 + cellZ + 0) * 33 + cellY + 0];
@@ -189,4 +191,10 @@ export function generateBaseTerrain(blocks, densityField) {
       }
     }
   }
+
+  return endCellX;
+}
+
+export function generateBaseTerrain(blocks, densityField) {
+  generateBaseTerrainCellColumns(blocks, densityField);
 }

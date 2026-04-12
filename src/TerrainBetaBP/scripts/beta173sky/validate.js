@@ -44,6 +44,19 @@ function hashArray(array) {
   return hash >>> 0;
 }
 
+function advanceSessionToCompletion(session, advance, label, maxSteps = 20000) {
+  let steps = 0;
+  while (!session.complete) {
+    if (!advance(session)) {
+      throw new Error(`${label} stalled before completion`);
+    }
+    steps += 1;
+    if (steps > maxSteps) {
+      throw new Error(`${label} exceeded ${maxSteps} steps`);
+    }
+  }
+}
+
 function assertMappedBlocks(chunk, label) {
   for (const blockId of chunk.blocks) {
     if (!(blockId in BEDROCK_BLOCK_MAP)) {
@@ -145,9 +158,11 @@ function assertBackgroundSessionParity() {
   const terrain = generator.generateTerrainChunk(0, 0);
 
   const terrainSession = generator.createBackgroundTerrainSession(0, 0);
-  if (!generator.advanceBackgroundTerrainSession(terrainSession) || !terrainSession.complete) {
-    throw new Error("background terrain session did not complete");
-  }
+  advanceSessionToCompletion(
+    terrainSession,
+    (session) => generator.advanceBackgroundTerrainSession(session),
+    "background terrain session",
+  );
 
   if (!arraysEqual(terrain.blocks, terrainSession.terrainChunk.blocks)) {
     throw new Error("background terrain session blocks mismatch");
@@ -155,9 +170,11 @@ function assertBackgroundSessionParity() {
 
   const decorated = generator.decorateTerrainChunk(terrain, { rebuildHeightmap: false });
   const decorationSession = generator.createBackgroundDecorationSession(terrain);
-  if (!generator.advanceBackgroundDecorationSession(decorationSession) || !decorationSession.complete) {
-    throw new Error("background decoration session did not complete");
-  }
+  advanceSessionToCompletion(
+    decorationSession,
+    (session) => generator.advanceBackgroundDecorationSession(session),
+    "background decoration session",
+  );
   if (!arraysEqual(decorated.blocks, decorationSession.decoratedBlocks)) {
     throw new Error("background decoration session blocks mismatch");
   }
