@@ -1,6 +1,36 @@
 // Generator-specific user-facing settings.
 // Future generators can be added as new keys alongside beta173.
 export const GENERATOR_CONFIGS = {
+  alpha1016: {
+    seed: "-1",
+    storageKey: "alpha1016GeneratedChunks",
+    farlandsCoordinate: 12550821,
+    runtimeProfile: {
+      initializationCompletionMode: "center_landing",
+      backgroundLookaheadChunks: 3,
+    },
+    // Optional early Far Lands override.
+    // Omit this to keep alpha1016's natural overflow boundary.
+    // farlandsCoordinate: 105508,
+    // Optional Bedrock block-id overrides for logical materials and feature blocks.
+    blockPalette: {},
+    // Alpha has a single overworld surface profile.
+    // Example:
+    // OVERWORLD: { top: "GRASS", fill: "DIRT" }
+    surfacePalette: {},
+    options: {
+      caves: true,
+      dungeons: true,
+      clay: true,
+      ores: true,
+      trees: true,
+      flora: true,
+      springs: true,
+      snow: true,
+      snowCovered: false,
+      caveRange: 8,
+    },
+  },
   beta173: {
     seed: "-1",
     storageKey: "beta173GeneratedChunks",

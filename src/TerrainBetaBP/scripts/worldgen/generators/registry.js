@@ -1,7 +1,9 @@
+import { createAlpha1016WorldGenerator } from "./alpha1016.js";
 import { createBeta173WorldGenerator } from "./beta173.js";
 import { createBeta173SkyWorldGenerator } from "./beta173sky.js";
 
 const GENERATOR_FACTORIES = {
+  alpha1016: createAlpha1016WorldGenerator,
   beta173: createBeta173WorldGenerator,
   beta173sky: createBeta173SkyWorldGenerator,
 };
