@@ -13,6 +13,7 @@ import {
 
 const activeWorldGenerator = createConfiguredWorldGenerator();
 const activeRuntimeProfile = activeWorldGenerator.runtimeProfile ?? {};
+const activeGenerator = activeWorldGenerator.generator;
 const BLOCKS = activeWorldGenerator.blocks;
 const BEDROCK_BLOCK_MAP = activeWorldGenerator.blockTypeMap;
 
@@ -42,6 +43,43 @@ const MAX_BACKGROUND_DECORATION_PLANS_PER_TICK = 2;
 const BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
   ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
   : 3;
+const FOREGROUND_USES_BACKGROUND_SESSIONS = activeRuntimeProfile.foregroundUsesBackgroundSessions === true
+  && typeof activeGenerator.createBackgroundTerrainSession === "function"
+  && typeof activeGenerator.advanceBackgroundTerrainSession === "function"
+  && typeof activeGenerator.createBackgroundDecorationSession === "function"
+  && typeof activeGenerator.advanceBackgroundDecorationSession === "function";
+const FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "foregroundTerrainSessionStepsPerCall",
+  1,
+);
+const FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "foregroundDecorationSessionStepsPerCall",
+  1,
+);
+const FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "foregroundTerrainPlanColumnsPerCall",
+  1,
+);
+const FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "foregroundDecorationPlanColumnsPerCall",
+  1,
+);
+const INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "initializationTerrainSessionStepsPerCall",
+  Math.max(1, Math.floor(FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL / 2)),
+);
+const INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "initializationDecorationSessionStepsPerCall",
+  Math.max(1, Math.floor(FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL / 4)),
+);
+const INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "initializationTerrainPlanColumnsPerCall",
+  FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL,
+);
+const INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+  "initializationDecorationPlanColumnsPerCall",
+  FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL,
+);
 const BACKGROUND_IDLE_BUDGET_BOOST_TICKS = 20;
 const BACKGROUND_DEEP_IDLE_BUDGET_BOOST_TICKS = 60;
 const INITIALIZATION_MAX_DURATION_MS = 60_000;
@@ -81,7 +119,6 @@ const DEFERRED_BLOCK_BY_ID = [];
 const permutationCache = new Map();
 const pendingChunkTasks = new Map();
 const backgroundChunkTasks = new Map();
-const activeGenerator = activeWorldGenerator.generator;
 const initializationReturnColumnOrderCache = new Map();
 
 const unresolvedBlockTypeWarnings = new Set();
@@ -108,22 +145,42 @@ let initializationWindowRunning = false;
 let initializationReturnPending = false;
 let initializationFinishReason = "";
 const FOREGROUND_STEP_LIMITS = Object.freeze({
+  terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+    ? FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL
+    : 1,
+  terrainPlanColumnsPerStep: FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL,
   terrainStableRunsPerStep: MAX_TERRAIN_STABLE_RUNS_PER_STEP,
   terrainDeferredRunsPerStep: MAX_TERRAIN_DEFERRED_RUNS_PER_STEP,
+  decorationSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+    ? FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL
+    : 1,
+  decorationPlanColumnsPerStep: FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL,
   decorationStableRunsPerStep: MAX_DECORATION_STABLE_RUNS_PER_STEP,
   decorationDeferredRunsPerStep: MAX_DECORATION_DEFERRED_RUNS_PER_STEP,
 });
 const BACKGROUND_STEP_LIMITS = Object.freeze({
+  terrainSessionStepsPerCall: 1,
+  terrainPlanColumnsPerStep: 1,
   terrainStableRunsPerStep: MAX_BACKGROUND_TERRAIN_STABLE_RUNS_PER_STEP,
   terrainDeferredRunsPerStep: MAX_BACKGROUND_TERRAIN_DEFERRED_RUNS_PER_STEP,
+  decorationSessionStepsPerCall: 1,
+  decorationPlanColumnsPerStep: 1,
   decorationStableRunsPerStep: MAX_BACKGROUND_DECORATION_STABLE_RUNS_PER_STEP,
   decorationDeferredRunsPerStep: MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP,
   verticalBlocksPerOperation: MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION,
   singleOperationPerCall: true,
 });
 const INITIALIZATION_STEP_LIMITS = Object.freeze({
+  terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+    ? INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL
+    : 1,
+  terrainPlanColumnsPerStep: INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL,
   terrainStableRunsPerStep: MAX_TERRAIN_STABLE_RUNS_PER_STEP * 2,
   terrainDeferredRunsPerStep: MAX_TERRAIN_DEFERRED_RUNS_PER_STEP * 2,
+  decorationSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+    ? INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL
+    : 1,
+  decorationPlanColumnsPerStep: INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL,
   decorationStableRunsPerStep: MAX_DECORATION_STABLE_RUNS_PER_STEP * 2,
   decorationDeferredRunsPerStep: MAX_DECORATION_DEFERRED_RUNS_PER_STEP * 2,
 });
@@ -174,6 +231,13 @@ for (let forwardX = -1; forwardX <= 1; forwardX += 1) {
       Object.freeze(orderedOffsets),
     );
   }
+}
+
+function getPositiveIntegerRuntimeProfileValue(key, fallback) {
+  const value = activeRuntimeProfile[key];
+  return Number.isInteger(value) && value > 0
+    ? value
+    : fallback;
 }
 
 function chunkBlockIndex(x, y, z) {
@@ -997,24 +1061,33 @@ function advanceDeltaWritePlanBuilder(builder, columnCount = 1) {
 }
 
 class PendingChunkTask {
-  constructor(chunkX, chunkZ, terrainChunk, terrainWritePlan, requestPass, skipTerrainWrite) {
+  constructor(chunkX, chunkZ, terrainChunk, terrainWritePlan, requestPass, skipTerrainWrite, options = {}) {
     this.chunkX = chunkX;
     this.chunkZ = chunkZ;
     this.key = chunkKey(chunkX, chunkZ);
     this.lastRequestedPass = requestPass;
+    this.skipTerrainWrite = skipTerrainWrite;
+    this.useGeneratorSessions = options.useGeneratorSessions ?? false;
+    this.backgroundStartedLogged = options.backgroundStartedLogged ?? false;
+    this.backgroundTerrainSession = options.backgroundTerrainSession ?? null;
     this.terrainChunk = terrainChunk;
-    this.terrainBlocks = terrainChunk.blocks;
+    this.terrainBlocks = terrainChunk?.blocks ?? null;
     this.hasWorldWrites = false;
-    this.terrainStableRuns = terrainWritePlan?.stableRuns ?? [];
-    this.terrainDeferredRuns = terrainWritePlan?.deferredRuns ?? [];
+    this.terrainPlanBuilder = options.terrainPlanBuilder ?? null;
+    this.terrainStableRuns = options.terrainStableRuns ?? terrainWritePlan?.stableRuns ?? [];
+    this.terrainDeferredRuns = options.terrainDeferredRuns ?? terrainWritePlan?.deferredRuns ?? [];
     this.terrainStableCursor = 0;
     this.terrainStableY = null;
     this.terrainDeferredCursor = 0;
     this.terrainDeferredY = null;
-    this.terrainComplete = skipTerrainWrite;
-    this.decorationPrepared = false;
-    this.decorationStableRuns = [];
-    this.decorationDeferredRuns = [];
+    this.terrainComplete = options.terrainComplete ?? (skipTerrainWrite && terrainChunk !== null);
+    this.backgroundDecorationSession = options.backgroundDecorationSession ?? null;
+    this.decorationPlanBuilder = options.decorationPlanBuilder ?? null;
+    this.decorationPrepared = options.decorationPrepared ?? false;
+    this.decorationTreeRuns = options.decorationTreeRuns ?? [];
+    this.decorationTreeComplete = options.decorationTreeComplete ?? true;
+    this.decorationStableRuns = options.decorationStableRuns ?? [];
+    this.decorationDeferredRuns = options.decorationDeferredRuns ?? [];
     this.decorationStableCursor = 0;
     this.decorationDeferredCursor = 0;
   }
@@ -1027,6 +1100,8 @@ class BackgroundChunkTask {
     this.key = chunkKey(chunkX, chunkZ);
     this.lastRequestedPass = requestPass;
     this.skipTerrainWrite = skipTerrainWrite;
+    this.useGeneratorSessions = true;
+    this.backgroundStartedLogged = false;
     this.hasWorldWrites = false;
     this.backgroundTerrainSession = activeGenerator.createBackgroundTerrainSession(chunkX, chunkZ);
     this.terrainChunk = null;
@@ -1560,10 +1635,15 @@ function addTerrainChunk(chunkX, chunkZ) {
   terrainChunks.add(chunkX, chunkZ);
 }
 
-function logBackgroundChunkStarted(chunkX, chunkZ) {
+function logBackgroundChunkStarted(task) {
+  if (task.backgroundStartedLogged) {
+    return;
+  }
+
+  task.backgroundStartedLogged = true;
   backgroundStartedChunkCount += 1;
   console.warn(
-    `Background generation started chunk #${backgroundStartedChunkCount}: ${chunkX}, ${chunkZ}`,
+    `Background generation started chunk #${backgroundStartedChunkCount}: ${task.chunkX}, ${task.chunkZ}`,
   );
 }
 
@@ -1575,6 +1655,39 @@ function logBackgroundChunkCompleted(chunkX, chunkZ) {
 }
 
 function ensureBackgroundTaskCompatibility(task) {
+  if (!("skipTerrainWrite" in task)) {
+    task.skipTerrainWrite = false;
+  }
+
+  if (!("useGeneratorSessions" in task)) {
+    task.useGeneratorSessions = Boolean(
+      task.backgroundTerrainSession
+      || task.terrainPlanBuilder
+      || task.backgroundDecorationSession
+      || task.decorationPlanBuilder,
+    );
+  }
+
+  if (typeof task.backgroundStartedLogged !== "boolean") {
+    task.backgroundStartedLogged = false;
+  }
+
+  if (!("backgroundTerrainSession" in task)) {
+    task.backgroundTerrainSession = null;
+  }
+
+  if (!("terrainPlanBuilder" in task)) {
+    task.terrainPlanBuilder = null;
+  }
+
+  if (!("terrainChunk" in task)) {
+    task.terrainChunk = null;
+  }
+
+  if (!("terrainBlocks" in task) || !task.terrainBlocks) {
+    task.terrainBlocks = task.terrainChunk?.blocks ?? null;
+  }
+
   if (!Array.isArray(task.decorationTreeRuns)) {
     task.decorationTreeRuns = [];
   }
@@ -1593,22 +1706,7 @@ function ensureBackgroundTaskCompatibility(task) {
 }
 
 function canForegroundAdoptBackgroundTask(task, requiredPhase) {
-  if (
-    !task
-    || !task.terrainChunk
-    || task.backgroundTerrainSession
-    || task.terrainPlanBuilder
-    || task.backgroundDecorationSession
-    || task.decorationPlanBuilder
-  ) {
-    return false;
-  }
-
-  if (requiredPhase === DETAIL_PHASE_TERRAIN) {
-    return true;
-  }
-
-  return !task.decorationPrepared || task.decorationTreeComplete === true;
+  return Boolean(task);
 }
 
 function tryPromoteBackgroundTaskToPending(key, requestPass, requiredPhase) {
@@ -1649,6 +1747,26 @@ function prepareChunkTask(chunkX, chunkZ, requestPass, skipTerrainWrite) {
     return false;
   }
 
+  if (FOREGROUND_USES_BACKGROUND_SESSIONS) {
+    pendingChunkTasks.set(
+      key,
+      new PendingChunkTask(
+        chunkX,
+        chunkZ,
+        null,
+        null,
+        requestPass,
+        skipTerrainWrite,
+        {
+          useGeneratorSessions: true,
+          backgroundTerrainSession: activeGenerator.createBackgroundTerrainSession(chunkX, chunkZ),
+          terrainComplete: false,
+        },
+      ),
+    );
+    return true;
+  }
+
   const terrainChunk = activeGenerator.generateTerrainChunk(chunkX, chunkZ);
   const terrainWritePlan = skipTerrainWrite ? null : buildChunkWritePlan(terrainChunk);
   pendingChunkTasks.set(
@@ -1685,7 +1803,6 @@ function prepareBackgroundChunkTask(chunkX, chunkZ, requestPass, skipTerrainWrit
     ),
   );
   ensureBackgroundTaskCompatibility(backgroundChunkTasks.get(key));
-  logBackgroundChunkStarted(chunkX, chunkZ);
   return true;
 }
 
@@ -1711,7 +1828,6 @@ function handOffPendingChunkTasksToBackground(currentPass) {
     pendingChunkTasks.delete(task.key);
     ensureBackgroundTaskCompatibility(task);
     backgroundChunkTasks.set(task.key, task);
-    logBackgroundChunkStarted(task.chunkX, task.chunkZ);
   }
 }
 
@@ -1725,6 +1841,123 @@ function prepareDecorationPlan(task) {
   task.decorationPrepared = true;
 }
 
+function finalizeTerrainSession(task) {
+  if (!task.backgroundTerrainSession?.complete) {
+    return false;
+  }
+
+  const terrainChunk = task.backgroundTerrainSession.terrainChunk ?? task.backgroundTerrainSession.chunk ?? null;
+  if (!terrainChunk) {
+    return false;
+  }
+
+  task.terrainChunk = terrainChunk;
+  task.terrainBlocks = terrainChunk.blocks;
+  task.backgroundTerrainSession = null;
+
+  if (task.skipTerrainWrite) {
+    task.terrainComplete = true;
+  } else {
+    task.terrainPlanBuilder = createChunkWritePlanBuilder(terrainChunk);
+  }
+
+  return true;
+}
+
+function advanceTerrainSession(task, maxSteps) {
+  let progressed = false;
+  let remainingSteps = Math.max(1, maxSteps);
+
+  while (task.backgroundTerrainSession && !task.terrainChunk && remainingSteps > 0) {
+    if (finalizeTerrainSession(task)) {
+      return true;
+    }
+
+    if (!activeGenerator.advanceBackgroundTerrainSession(task.backgroundTerrainSession)) {
+      break;
+    }
+
+    progressed = true;
+    remainingSteps -= 1;
+  }
+
+  return finalizeTerrainSession(task) || progressed;
+}
+
+function advanceTerrainPlanBuilder(task, columnCount) {
+  if (!task.terrainPlanBuilder || task.terrainPlanBuilder.complete) {
+    return false;
+  }
+
+  if (!advanceChunkWritePlanBuilder(task.terrainPlanBuilder, Math.max(1, columnCount))) {
+    return false;
+  }
+
+  if (task.terrainPlanBuilder.complete) {
+    task.terrainStableRuns = task.terrainPlanBuilder.stableRuns;
+    task.terrainDeferredRuns = task.terrainPlanBuilder.deferredRuns;
+    task.terrainPlanBuilder = null;
+  }
+
+  return true;
+}
+
+function finalizeDecorationSession(task) {
+  if (!task.backgroundDecorationSession?.complete || task.decorationPlanBuilder) {
+    return false;
+  }
+
+  const decoratedBlocks = task.backgroundDecorationSession.decoratedBlocks ?? task.terrainBlocks;
+  task.decorationPlanBuilder = createDeltaWritePlanBuilder(task.terrainBlocks, decoratedBlocks);
+  task.backgroundDecorationSession = null;
+  return true;
+}
+
+function advanceDecorationSession(task, maxSteps) {
+  let progressed = false;
+  let remainingSteps = Math.max(1, maxSteps);
+
+  while (task.backgroundDecorationSession && remainingSteps > 0) {
+    if (finalizeDecorationSession(task)) {
+      return true;
+    }
+
+    if (!activeGenerator.advanceBackgroundDecorationSession(task.backgroundDecorationSession)) {
+      break;
+    }
+
+    progressed = true;
+    remainingSteps -= 1;
+  }
+
+  return finalizeDecorationSession(task) || progressed;
+}
+
+function advanceDecorationPlanBuilder(task, columnCount) {
+  if (!task.decorationPlanBuilder || task.decorationPlanBuilder.complete) {
+    return false;
+  }
+
+  if (!advanceDeltaWritePlanBuilder(task.decorationPlanBuilder, Math.max(1, columnCount))) {
+    return false;
+  }
+
+  if (task.decorationPlanBuilder.complete) {
+    const decorationRuns = partitionTreeDecorationRuns(
+      task.decorationPlanBuilder.stableRuns,
+      task.decorationPlanBuilder.deferredRuns,
+    );
+    task.decorationTreeRuns = decorationRuns.treeRuns;
+    task.decorationTreeComplete = task.decorationTreeRuns.length === 0;
+    task.decorationStableRuns = decorationRuns.stableRuns;
+    task.decorationDeferredRuns = decorationRuns.deferredRuns;
+    task.decorationPrepared = true;
+    task.decorationPlanBuilder = null;
+  }
+
+  return true;
+}
+
 function advanceBackgroundChunkTask(dimension, task) {
   const startX = task.chunkX * CHUNK_SIZE;
   const startZ = task.chunkZ * CHUNK_SIZE;
@@ -1734,37 +1967,12 @@ function advanceBackgroundChunkTask(dimension, task) {
   }
 
   if (!task.terrainChunk) {
-    const terrainProgressed = activeGenerator.advanceBackgroundTerrainSession(task.backgroundTerrainSession);
-    if (!terrainProgressed) {
-      return false;
-    }
-
-    if (task.backgroundTerrainSession.complete) {
-      task.terrainChunk = task.backgroundTerrainSession.terrainChunk;
-      task.terrainBlocks = task.terrainChunk.blocks;
-      task.backgroundTerrainSession = null;
-      if (task.skipTerrainWrite) {
-        task.terrainComplete = true;
-      } else {
-        task.terrainPlanBuilder = createChunkWritePlanBuilder(task.terrainChunk);
-      }
-    }
-
-    return true;
+    return advanceTerrainSession(task, BACKGROUND_STEP_LIMITS.terrainSessionStepsPerCall);
   }
 
   if (!task.terrainComplete) {
-    if (task.terrainPlanBuilder && !task.terrainPlanBuilder.complete) {
-      if (!advanceChunkWritePlanBuilder(task.terrainPlanBuilder, 1)) {
-        return false;
-      }
-
-      if (task.terrainPlanBuilder.complete) {
-        task.terrainStableRuns = task.terrainPlanBuilder.stableRuns;
-        task.terrainDeferredRuns = task.terrainPlanBuilder.deferredRuns;
-        task.terrainPlanBuilder = null;
-      }
-      return true;
+    if (task.terrainPlanBuilder) {
+      return advanceTerrainPlanBuilder(task, BACKGROUND_STEP_LIMITS.terrainPlanColumnsPerStep);
     }
 
     if (task.terrainStableCursor < task.terrainStableRuns.length) {
@@ -1816,44 +2024,25 @@ function advanceBackgroundChunkTask(dimension, task) {
   }
 
   if (!task.decorationPrepared) {
-    if (task.backgroundDecorationSession && !task.backgroundDecorationSession.complete) {
-      return activeGenerator.advanceBackgroundDecorationSession(task.backgroundDecorationSession);
+    if (task.backgroundDecorationSession) {
+      return advanceDecorationSession(task, BACKGROUND_STEP_LIMITS.decorationSessionStepsPerCall);
     }
 
-    if (task.backgroundDecorationSession && task.backgroundDecorationSession.complete && !task.decorationPlanBuilder) {
-      const decoratedBlocks = task.backgroundDecorationSession.decoratedBlocks ?? task.terrainBlocks;
-      task.decorationPlanBuilder = createDeltaWritePlanBuilder(task.terrainBlocks, decoratedBlocks);
-      task.backgroundDecorationSession = null;
-      return true;
-    }
-
-    if (task.decorationPlanBuilder && !task.decorationPlanBuilder.complete) {
-      if (!advanceDeltaWritePlanBuilder(task.decorationPlanBuilder, 1)) {
-        return false;
+    if (task.decorationPlanBuilder) {
+      const planProgressed = advanceDecorationPlanBuilder(
+        task,
+        BACKGROUND_STEP_LIMITS.decorationPlanColumnsPerStep,
+      );
+      if (
+        planProgressed
+        && task.decorationPrepared
+        && task.decorationTreeComplete
+        && task.decorationStableRuns.length === 0
+        && task.decorationDeferredRuns.length === 0
+      ) {
+        finishBackgroundDecoratedChunk(task);
       }
-
-      if (task.decorationPlanBuilder.complete) {
-        const decorationRuns = partitionTreeDecorationRuns(
-          task.decorationPlanBuilder.stableRuns,
-          task.decorationPlanBuilder.deferredRuns,
-        );
-        task.decorationTreeRuns = decorationRuns.treeRuns;
-        task.decorationTreeComplete = task.decorationTreeRuns.length === 0;
-        task.decorationStableRuns = decorationRuns.stableRuns;
-        task.decorationDeferredRuns = decorationRuns.deferredRuns;
-        task.decorationPrepared = true;
-        task.decorationPlanBuilder = null;
-
-        if (
-          task.decorationTreeComplete
-          && task.decorationStableRuns.length === 0
-          && task.decorationDeferredRuns.length === 0
-        ) {
-          finishBackgroundDecoratedChunk(task);
-        }
-      }
-
-      return true;
+      return planProgressed;
     }
   }
 
@@ -1938,7 +2127,15 @@ function advanceChunkTask(
   }
 
   let progressed = false;
+  if (!task.terrainChunk && task.backgroundTerrainSession) {
+    return advanceTerrainSession(task, stepLimits.terrainSessionStepsPerCall ?? 1);
+  }
+
   if (!task.terrainComplete) {
+    if (task.terrainPlanBuilder) {
+      return advanceTerrainPlanBuilder(task, stepLimits.terrainPlanColumnsPerStep ?? 1);
+    }
+
     if (task.terrainStableCursor < task.terrainStableRuns.length) {
       const terrainStableStep = writeRunBatch(
         dimension,
@@ -2011,6 +2208,36 @@ function advanceChunkTask(
   }
 
   if (!task.decorationPrepared) {
+    if (task.useGeneratorSessions) {
+      if (!task.backgroundDecorationSession && !task.decorationPlanBuilder) {
+        task.backgroundDecorationSession = activeGenerator.createBackgroundDecorationSession(task.terrainChunk);
+        return true;
+      }
+
+      if (task.backgroundDecorationSession) {
+        return advanceDecorationSession(task, stepLimits.decorationSessionStepsPerCall ?? 1);
+      }
+
+      if (task.decorationPlanBuilder) {
+        const planProgressed = advanceDecorationPlanBuilder(
+          task,
+          stepLimits.decorationPlanColumnsPerStep ?? 1,
+        );
+
+        if (
+          planProgressed
+          && task.decorationPrepared
+          && task.decorationTreeComplete
+          && task.decorationStableRuns.length === 0
+          && task.decorationDeferredRuns.length === 0
+        ) {
+          finishDecoratedChunk(task);
+        }
+
+        return planProgressed;
+      }
+    }
+
     prepareDecorationPlan(task);
     progressed = true;
 
@@ -2025,6 +2252,31 @@ function advanceChunkTask(
     if (stepLimits.singleOperationPerCall) {
       return true;
     }
+  }
+
+  if (!task.decorationTreeComplete) {
+    const decorationTreeStep = writeListVolumeBatch(
+      dimension,
+      task.chunkX,
+      task.chunkZ,
+      task.decorationTreeRuns,
+      0,
+      task.decorationTreeRuns.length,
+    );
+    if (decorationTreeStep.progressed) {
+      task.hasWorldWrites = true;
+      task.decorationTreeComplete = true;
+    }
+
+    if (
+      task.decorationTreeComplete
+      && task.decorationStableRuns.length === 0
+      && task.decorationDeferredRuns.length === 0
+    ) {
+      finishDecoratedChunk(task);
+    }
+
+    return decorationTreeStep.progressed;
   }
 
   if (task.decorationStableCursor < task.decorationStableRuns.length) {
@@ -2293,7 +2545,7 @@ function advanceInitializationChunkTarget(dimension, target) {
       generationPass,
       DETAIL_PHASE_COMPLETE,
     )) {
-      backgroundChunkTasks.delete(target.key);
+      return false;
     }
     task = pendingChunkTasks.get(target.key);
   }
@@ -2638,6 +2890,8 @@ function* idleBackgroundGenerationJob() {
         break;
       }
 
+      logBackgroundChunkStarted(task);
+
       if (didBackgroundTaskPrepareDecorationPlan(stepBeforeState, task)) {
         backgroundDecorationPlansThisTick += 1;
       }
@@ -2781,7 +3035,7 @@ system.runInterval(() => {
         generationPass,
         request.requiredPhase,
       )) {
-        backgroundChunkTasks.delete(request.key);
+        continue;
       }
     }
 

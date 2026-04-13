@@ -19,6 +19,15 @@ const BETA173_TWILIGHT_FOREST_DIMENSIONS = Object.freeze({
 const BETA173_TWILIGHT_FOREST_RUNTIME_PROFILE = Object.freeze({
   initializationCompletionMode: "center_landing",
   backgroundLookaheadChunks: 1,
+  foregroundUsesBackgroundSessions: true,
+  foregroundTerrainSessionStepsPerCall: 8,
+  foregroundTerrainPlanColumnsPerCall: 4,
+  foregroundDecorationSessionStepsPerCall: 64,
+  foregroundDecorationPlanColumnsPerCall: 4,
+  initializationTerrainSessionStepsPerCall: 8,
+  initializationTerrainPlanColumnsPerCall: 4,
+  initializationDecorationSessionStepsPerCall: 16,
+  initializationDecorationPlanColumnsPerCall: 2,
 });
 
 export function createBeta173TwilightForestWorldGenerator(config) {
