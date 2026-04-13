@@ -93,4 +93,26 @@ export const GENERATOR_CONFIGS = {
       caveRange: 8,
     },
   },
+  beta173twilightforest: {
+    seed: "-1",
+    storageKey: "beta173TwilightForestGeneratedChunks",
+    farlandsCoordinate: 12550821,
+    runtimeProfile: {
+      initializationCompletionMode: "center_landing",
+      backgroundLookaheadChunks: 1,
+    },
+    blockPalette: {},
+    surfacePalette: {},
+    options: {
+      lakes: true,
+      randomFeatures: true,
+      hollowTrees: true,
+      ores: true,
+      trees: true,
+      flora: true,
+      springs: true,
+      snow: true,
+      hollowHills: true,
+    },
+  },
 };
