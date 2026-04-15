@@ -1760,7 +1760,8 @@
   },
 
   "form_loading_wrapper": {
-    "$form_loading_wait_duration": 2,
+    "$form_loading_active_duration": 62.6,
+    "$form_loading_complete_duration": 0.4,
     "type": "panel",
     "size": [ "100%", "100%" ],
     "layer": 100,
