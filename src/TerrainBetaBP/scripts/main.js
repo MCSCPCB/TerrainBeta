@@ -1,1 +1,1 @@
-import "./chunkGenerator.js";
+import "./worldgenForm.js";

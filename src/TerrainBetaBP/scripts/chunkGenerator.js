@@ -10,16 +10,22 @@ import {
   BLOCK_GENERATION_CONFIG,
   createConfiguredWorldGenerator,
 } from "./worldgen/index.js";
+import {
+  WORLDGEN_ACTIVATED_PROPERTY,
+  WORLDGEN_INITIALIZATION_RETURN_PROPERTY,
+  loadStoredWorldgenConfigSubmission,
+} from "./worldgen/config/playerConfig.js";
 
-const activeWorldGenerator = createConfiguredWorldGenerator();
-const activeRuntimeProfile = activeWorldGenerator.runtimeProfile ?? {};
-const activeGenerator = activeWorldGenerator.generator;
-const BLOCKS = activeWorldGenerator.blocks;
-const BEDROCK_BLOCK_MAP = activeWorldGenerator.blockTypeMap;
+let generationRuntimeReady = false;
+let activeWorldGenerator = null;
+let activeRuntimeProfile = {};
+let activeGenerator = null;
+let BLOCKS = null;
+let BEDROCK_BLOCK_MAP = {};
 
-const CHUNK_SIZE = activeWorldGenerator.dimensions.chunkSize;
-const CHUNK_HEIGHT = activeWorldGenerator.dimensions.chunkHeight;
-const MIN_WORLD_Y = activeWorldGenerator.dimensions.minWorldY;
+let CHUNK_SIZE = 16;
+let CHUNK_HEIGHT = 128;
+let MIN_WORLD_Y = 0;
 const LOAD_RADIUS = 2;
 const FULL_DETAIL_DISTANCE = 3;
 const FOREGROUND_PRIORITY_NONE = 99;
@@ -40,43 +46,44 @@ const MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP = 4; // 3
 const MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION = 24; // 16
 const MAX_BACKGROUND_WORLD_WRITES_PER_TICK = 5;
 const MAX_BACKGROUND_DECORATION_PLANS_PER_TICK = 2;
-const BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
+let BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
   ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
   : 3;
-const FOREGROUND_USES_BACKGROUND_SESSIONS = activeRuntimeProfile.foregroundUsesBackgroundSessions === true
+let FOREGROUND_USES_BACKGROUND_SESSIONS = activeRuntimeProfile.foregroundUsesBackgroundSessions === true
+  && activeGenerator
   && typeof activeGenerator.createBackgroundTerrainSession === "function"
   && typeof activeGenerator.advanceBackgroundTerrainSession === "function"
   && typeof activeGenerator.createBackgroundDecorationSession === "function"
   && typeof activeGenerator.advanceBackgroundDecorationSession === "function";
-const FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "foregroundTerrainSessionStepsPerCall",
   1,
 );
-const FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "foregroundDecorationSessionStepsPerCall",
   1,
 );
-const FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "foregroundTerrainPlanColumnsPerCall",
   1,
 );
-const FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "foregroundDecorationPlanColumnsPerCall",
   1,
 );
-const INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "initializationTerrainSessionStepsPerCall",
   Math.max(1, Math.floor(FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL / 2)),
 );
-const INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "initializationDecorationSessionStepsPerCall",
   Math.max(1, Math.floor(FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL / 4)),
 );
-const INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "initializationTerrainPlanColumnsPerCall",
   FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL,
 );
-const INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+let INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
   "initializationDecorationPlanColumnsPerCall",
   FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL,
 );
@@ -87,20 +94,18 @@ const INITIALIZATION_PROGRESS_REPORT_INTERVAL_MS = 1_000;
 const INITIALIZATION_MAX_CHUNK_STEPS_PER_TICK = 32;
 const INITIALIZATION_PLAYER_LOADING_HEIGHT = 320;
 const INITIALIZATION_RETURN_SEARCH_COLUMNS_PER_TICK = 64;
-const CHUNK_STATUS_STORAGE_KEY = activeWorldGenerator.storageKey;
+let CHUNK_STATUS_STORAGE_KEY = "terrainbetaGeneratedChunks";
 const CHUNK_STATUS_STORAGE_BUCKET_COUNT = 256;
-const TERRAIN_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:terrain`;
-const POPULATED_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:population`;
-const INITIALIZATION_TRIGGERED_PROPERTY = `${CHUNK_STATUS_STORAGE_KEY}:initialization_triggered`;
-const INITIALIZATION_PLAYER_RETURN_PROPERTY = `${CHUNK_STATUS_STORAGE_KEY}:initialization_return`;
+let TERRAIN_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:terrain`;
+let POPULATED_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:population`;
 const FALLBACK_BLOCK_TYPE_ID = BLOCK_GENERATION_CONFIG.fallbackBlockTypeId;
 const BLOCK_ACCESS_SAMPLE_Y = 64;
 const BACKGROUND_TICKINGAREA_RADIUS_CHUNKS = 1;
-const BACKGROUND_TICKINGAREA_NAME = `${CHUNK_STATUS_STORAGE_KEY}_background`
+let BACKGROUND_TICKINGAREA_NAME = `${CHUNK_STATUS_STORAGE_KEY}_background`
   .replace(/[^0-9A-Za-z_]/g, "_");
 const DETAIL_PHASE_TERRAIN = "terrain";
 const DETAIL_PHASE_COMPLETE = "complete";
-const INITIALIZATION_COMPLETION_MODE = activeRuntimeProfile.initializationCompletionMode ?? "center_landing";
+let INITIALIZATION_COMPLETION_MODE = activeRuntimeProfile.initializationCompletionMode ?? "center_landing";
 const WRITE_CATEGORY_STABLE = "stable";
 const WRITE_CATEGORY_DEFERRED = "deferred";
 const TREE_DECORATION_BLOCK_TYPE_IDS = new Set([
@@ -144,7 +149,7 @@ let initializationCompletedChunkCount = 0;
 let initializationWindowRunning = false;
 let initializationReturnPending = false;
 let initializationFinishReason = "";
-const FOREGROUND_STEP_LIMITS = Object.freeze({
+let FOREGROUND_STEP_LIMITS = Object.freeze({
   terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
     ? FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL
     : 1,
@@ -158,7 +163,7 @@ const FOREGROUND_STEP_LIMITS = Object.freeze({
   decorationStableRunsPerStep: MAX_DECORATION_STABLE_RUNS_PER_STEP,
   decorationDeferredRunsPerStep: MAX_DECORATION_DEFERRED_RUNS_PER_STEP,
 });
-const BACKGROUND_STEP_LIMITS = Object.freeze({
+let BACKGROUND_STEP_LIMITS = Object.freeze({
   terrainSessionStepsPerCall: 1,
   terrainPlanColumnsPerStep: 1,
   terrainStableRunsPerStep: MAX_BACKGROUND_TERRAIN_STABLE_RUNS_PER_STEP,
@@ -170,7 +175,7 @@ const BACKGROUND_STEP_LIMITS = Object.freeze({
   verticalBlocksPerOperation: MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION,
   singleOperationPerCall: true,
 });
-const INITIALIZATION_STEP_LIMITS = Object.freeze({
+let INITIALIZATION_STEP_LIMITS = Object.freeze({
   terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
     ? INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL
     : 1,
@@ -196,12 +201,6 @@ const CARDINAL_CHUNK_OFFSETS = Object.freeze([
   Object.freeze({ x: 0, z: -1 }),
 ]);
 const BACKGROUND_NEIGHBOR_OFFSETS_BY_DIRECTION = new Map();
-
-for (const [blockIdText, typeId] of Object.entries(BEDROCK_BLOCK_MAP)) {
-  const blockId = Number(blockIdText);
-  BLOCK_TYPE_ID_BY_ID[blockId] = typeId;
-  DEFERRED_BLOCK_BY_ID[blockId] = blockId !== BLOCKS.AIR && DEFERRED_BLOCK_TYPES.has(typeId);
-}
 
 for (let forwardX = -1; forwardX <= 1; forwardX += 1) {
   for (let forwardZ = -1; forwardZ <= 1; forwardZ += 1) {
@@ -1204,8 +1203,148 @@ class PersistentChunkSet {
   }
 }
 
-const terrainChunks = new PersistentChunkSet(TERRAIN_CHUNK_STORAGE_KEY);
-const populatedChunks = new PersistentChunkSet(POPULATED_CHUNK_STORAGE_KEY);
+let terrainChunks = null;
+let populatedChunks = null;
+
+function configureGenerationRuntime() {
+  activeWorldGenerator = createConfiguredWorldGenerator();
+  activeRuntimeProfile = activeWorldGenerator.runtimeProfile ?? {};
+  activeGenerator = activeWorldGenerator.generator;
+  BLOCKS = activeWorldGenerator.blocks;
+  BEDROCK_BLOCK_MAP = activeWorldGenerator.blockTypeMap;
+
+  CHUNK_SIZE = activeWorldGenerator.dimensions.chunkSize;
+  CHUNK_HEIGHT = activeWorldGenerator.dimensions.chunkHeight;
+  MIN_WORLD_Y = activeWorldGenerator.dimensions.minWorldY;
+  BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
+    ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
+    : 3;
+  FOREGROUND_USES_BACKGROUND_SESSIONS = activeRuntimeProfile.foregroundUsesBackgroundSessions === true
+    && activeGenerator
+    && typeof activeGenerator.createBackgroundTerrainSession === "function"
+    && typeof activeGenerator.advanceBackgroundTerrainSession === "function"
+    && typeof activeGenerator.createBackgroundDecorationSession === "function"
+    && typeof activeGenerator.advanceBackgroundDecorationSession === "function";
+  FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "foregroundTerrainSessionStepsPerCall",
+    1,
+  );
+  FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "foregroundDecorationSessionStepsPerCall",
+    1,
+  );
+  FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "foregroundTerrainPlanColumnsPerCall",
+    1,
+  );
+  FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "foregroundDecorationPlanColumnsPerCall",
+    1,
+  );
+  INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "initializationTerrainSessionStepsPerCall",
+    Math.max(1, Math.floor(FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL / 2)),
+  );
+  INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "initializationDecorationSessionStepsPerCall",
+    Math.max(1, Math.floor(FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL / 4)),
+  );
+  INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "initializationTerrainPlanColumnsPerCall",
+    FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL,
+  );
+  INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL = getPositiveIntegerRuntimeProfileValue(
+    "initializationDecorationPlanColumnsPerCall",
+    FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL,
+  );
+  CHUNK_STATUS_STORAGE_KEY = activeWorldGenerator.storageKey;
+  TERRAIN_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:terrain`;
+  POPULATED_CHUNK_STORAGE_KEY = `${CHUNK_STATUS_STORAGE_KEY}:population`;
+  BACKGROUND_TICKINGAREA_NAME = `${CHUNK_STATUS_STORAGE_KEY}_background`
+    .replace(/[^0-9A-Za-z_]/g, "_");
+  INITIALIZATION_COMPLETION_MODE =
+    activeRuntimeProfile.initializationCompletionMode ?? "center_landing";
+  FOREGROUND_STEP_LIMITS = Object.freeze({
+    terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+      ? FOREGROUND_TERRAIN_SESSION_STEPS_PER_CALL
+      : 1,
+    terrainPlanColumnsPerStep: FOREGROUND_TERRAIN_PLAN_COLUMNS_PER_CALL,
+    terrainStableRunsPerStep: MAX_TERRAIN_STABLE_RUNS_PER_STEP,
+    terrainDeferredRunsPerStep: MAX_TERRAIN_DEFERRED_RUNS_PER_STEP,
+    decorationSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+      ? FOREGROUND_DECORATION_SESSION_STEPS_PER_CALL
+      : 1,
+    decorationPlanColumnsPerStep: FOREGROUND_DECORATION_PLAN_COLUMNS_PER_CALL,
+    decorationStableRunsPerStep: MAX_DECORATION_STABLE_RUNS_PER_STEP,
+    decorationDeferredRunsPerStep: MAX_DECORATION_DEFERRED_RUNS_PER_STEP,
+  });
+  BACKGROUND_STEP_LIMITS = Object.freeze({
+    terrainSessionStepsPerCall: 1,
+    terrainPlanColumnsPerStep: 1,
+    terrainStableRunsPerStep: MAX_BACKGROUND_TERRAIN_STABLE_RUNS_PER_STEP,
+    terrainDeferredRunsPerStep: MAX_BACKGROUND_TERRAIN_DEFERRED_RUNS_PER_STEP,
+    decorationSessionStepsPerCall: 1,
+    decorationPlanColumnsPerStep: 1,
+    decorationStableRunsPerStep: MAX_BACKGROUND_DECORATION_STABLE_RUNS_PER_STEP,
+    decorationDeferredRunsPerStep: MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP,
+    verticalBlocksPerOperation: MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION,
+    singleOperationPerCall: true,
+  });
+  INITIALIZATION_STEP_LIMITS = Object.freeze({
+    terrainSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+      ? INITIALIZATION_TERRAIN_SESSION_STEPS_PER_CALL
+      : 1,
+    terrainPlanColumnsPerStep: INITIALIZATION_TERRAIN_PLAN_COLUMNS_PER_CALL,
+    terrainStableRunsPerStep: MAX_TERRAIN_STABLE_RUNS_PER_STEP * 2,
+    terrainDeferredRunsPerStep: MAX_TERRAIN_DEFERRED_RUNS_PER_STEP * 2,
+    decorationSessionStepsPerCall: FOREGROUND_USES_BACKGROUND_SESSIONS
+      ? INITIALIZATION_DECORATION_SESSION_STEPS_PER_CALL
+      : 1,
+    decorationPlanColumnsPerStep: INITIALIZATION_DECORATION_PLAN_COLUMNS_PER_CALL,
+    decorationStableRunsPerStep: MAX_DECORATION_STABLE_RUNS_PER_STEP * 2,
+    decorationDeferredRunsPerStep: MAX_DECORATION_DEFERRED_RUNS_PER_STEP * 2,
+  });
+
+  BLOCK_TYPE_ID_BY_ID.length = 0;
+  DEFERRED_BLOCK_BY_ID.length = 0;
+  permutationCache.clear();
+  pendingChunkTasks.clear();
+  backgroundChunkTasks.clear();
+  initializationReturnColumnOrderCache.clear();
+  unresolvedBlockTypeWarnings.clear();
+  for (const [blockIdText, typeId] of Object.entries(BEDROCK_BLOCK_MAP)) {
+    const blockId = Number(blockIdText);
+    BLOCK_TYPE_ID_BY_ID[blockId] = typeId;
+    DEFERRED_BLOCK_BY_ID[blockId] = blockId !== BLOCKS.AIR
+      && DEFERRED_BLOCK_TYPES.has(typeId);
+  }
+
+  terrainChunks = new PersistentChunkSet(TERRAIN_CHUNK_STORAGE_KEY);
+  populatedChunks = new PersistentChunkSet(POPULATED_CHUNK_STORAGE_KEY);
+  backgroundTickingAreaState.busy = false;
+  backgroundTickingAreaState.loaded = false;
+  backgroundTickingAreaState.centerChunkX = 0;
+  backgroundTickingAreaState.centerChunkZ = 0;
+  clearInitializationAnchorState();
+  generationRuntimeReady = true;
+}
+
+function ensureGenerationRuntimeReady() {
+  if (generationRuntimeReady) {
+    return true;
+  }
+
+  if (!loadStoredWorldgenConfigSubmission()) {
+    return false;
+  }
+
+  configureGenerationRuntime();
+  return true;
+}
+
+export function initializeConfiguredWorldGenerationRuntime() {
+  return ensureGenerationRuntimeReady();
+}
 
 function isTaskTerrainComplete(task) {
   return task.terrainComplete;
@@ -1344,7 +1483,7 @@ function advanceInitializationAnchorTarget() {
 }
 
 function getInitializationReturnState(player) {
-  const raw = player.getDynamicProperty(INITIALIZATION_PLAYER_RETURN_PROPERTY);
+  const raw = player.getDynamicProperty(WORLDGEN_INITIALIZATION_RETURN_PROPERTY);
   if (typeof raw !== "string" || raw.length === 0) {
     return null;
   }
@@ -1354,13 +1493,13 @@ function getInitializationReturnState(player) {
 
 function setInitializationReturnState(player, state) {
   player.setDynamicProperty(
-    INITIALIZATION_PLAYER_RETURN_PROPERTY,
+    WORLDGEN_INITIALIZATION_RETURN_PROPERTY,
     JSON.stringify(state),
   );
 }
 
 function clearInitializationReturnState(player) {
-  player.setDynamicProperty(INITIALIZATION_PLAYER_RETURN_PROPERTY, undefined);
+  player.setDynamicProperty(WORLDGEN_INITIALIZATION_RETURN_PROPERTY, undefined);
 }
 
 function saveInitializationReturnState(player) {
@@ -2366,7 +2505,7 @@ function pruneBackgroundChunkTasks(currentPass) {
 }
 
 function triggerInitializationWindow(players = world.getAllPlayers()) {
-  world.setDynamicProperty(INITIALIZATION_TRIGGERED_PROPERTY, true);
+  world.setDynamicProperty(WORLDGEN_ACTIVATED_PROPERTY, true);
   initializationStartedAtMs = Date.now();
   initializationLastReportedAtMs = initializationStartedAtMs;
   initializationDeadlineMs = initializationStartedAtMs + INITIALIZATION_MAX_DURATION_MS;
@@ -2448,6 +2587,54 @@ function isInitializationBusy() {
   return initializationWindowRunning || initializationReturnPending;
 }
 
+function isWorldGenerationActivated() {
+  return world.getDynamicProperty(WORLDGEN_ACTIVATED_PROPERTY) === true;
+}
+
+function createInitializationTriggerPlayerOrder(triggeringPlayer, players = world.getAllPlayers()) {
+  if (!triggeringPlayer) {
+    return players;
+  }
+
+  const prioritizedPlayers = [];
+  const remainingPlayers = [];
+  for (const player of players) {
+    if (player.id === triggeringPlayer.id) {
+      prioritizedPlayers.push(player);
+      continue;
+    }
+
+    remainingPlayers.push(player);
+  }
+
+  if (prioritizedPlayers.length === 0) {
+    return players;
+  }
+
+  return [...prioritizedPlayers, ...remainingPlayers];
+}
+
+export function startConfiguredWorldGeneration(triggeringPlayer) {
+  if (isWorldGenerationActivated()) {
+    return false;
+  }
+
+  if (loadStoredWorldgenConfigSubmission()) {
+    configureGenerationRuntime();
+  } else if (!ensureGenerationRuntimeReady()) {
+    return false;
+  }
+
+  const players = createInitializationTriggerPlayerOrder(triggeringPlayer);
+  if (players.length === 0) {
+    return false;
+  }
+
+  triggerInitializationWindow(players);
+  observedPlayerCount = players.length;
+  return true;
+}
+
 function updateInitializationTriggerState() {
   const players = world.getAllPlayers();
   const playerCount = players.length;
@@ -2466,12 +2653,18 @@ function updateInitializationTriggerState() {
     return;
   }
 
-  if (!initializationWindowRunning) {
-    restoreInitializationPlayersFromProperties(players);
+  if (!isWorldGenerationActivated()) {
+    observedPlayerCount = playerCount;
+    return;
   }
 
-  if (observedPlayerCount === 0 && world.getDynamicProperty(INITIALIZATION_TRIGGERED_PROPERTY) !== true) {
-    triggerInitializationWindow(players);
+  if (!ensureGenerationRuntimeReady()) {
+    observedPlayerCount = playerCount;
+    return;
+  }
+
+  if (!initializationWindowRunning) {
+    restoreInitializationPlayersFromProperties(players);
   }
 
   observedPlayerCount = playerCount;
@@ -2677,6 +2870,11 @@ function advanceInitializationAnchorMovement(players) {
 
 function* initializationAnchorMovementJob() {
   while (true) {
+    if (!generationRuntimeReady) {
+      yield;
+      continue;
+    }
+
     const players = getActiveInitializationPlayers();
     if (players.length === 0) {
       yield;
@@ -2690,6 +2888,11 @@ function* initializationAnchorMovementJob() {
 
 function* initializationGenerationJob() {
   while (true) {
+    if (!generationRuntimeReady) {
+      yield;
+      continue;
+    }
+
     const players = getActiveInitializationPlayers();
     if (players.length === 0) {
       yield;
@@ -2745,6 +2948,11 @@ function* idleBackgroundGenerationJob() {
   let backgroundDecorationPlansThisTick = 0;
 
   while (true) {
+    if (!generationRuntimeReady) {
+      yield;
+      continue;
+    }
+
     if (budgetTick !== backgroundTickSequence) {
       budgetTick = backgroundTickSequence;
       backgroundWorldWritesThisTick = 0;
@@ -2761,6 +2969,18 @@ function* idleBackgroundGenerationJob() {
       backgroundWorldWritesThisTick >= backgroundBudgetCaps.worldWritesPerTick
       || backgroundDecorationPlansThisTick >= backgroundBudgetCaps.decorationPlansPerTick
     ) {
+      yield;
+      continue;
+    }
+
+    if (!isWorldGenerationActivated()) {
+      backgroundExclusiveTick = -1;
+      backgroundExclusiveTicks = 0;
+      playerSignature = "";
+      boundaryWarningSignature = "";
+      scanQueue = [];
+      scanVisited = new Set();
+      scanCursor = 0;
       yield;
       continue;
     }
@@ -2913,11 +3133,19 @@ system.runInterval(() => {
 }, 1);
 
 system.run(() => {
+  if (!ensureGenerationRuntimeReady()) {
+    return;
+  }
+
   restoreInitializationPlayersFromProperties();
 });
 
 world.afterEvents.playerSpawn.subscribe((event) => {
   system.run(() => {
+    if (!isWorldGenerationActivated() || !ensureGenerationRuntimeReady()) {
+      return;
+    }
+
     restoreInitializationReturnState(event.player);
   });
 });
@@ -2931,6 +3159,16 @@ system.runJob(initializationGenerationJob());
 system.runJob(idleBackgroundGenerationJob());
 
 system.runInterval(() => {
+  if (!generationRuntimeReady) {
+    foregroundDemandActive = false;
+    return;
+  }
+
+  if (!isWorldGenerationActivated()) {
+    foregroundDemandActive = false;
+    return;
+  }
+
   if (isInitializationBusy()) {
     foregroundDemandActive = false;
     return;
