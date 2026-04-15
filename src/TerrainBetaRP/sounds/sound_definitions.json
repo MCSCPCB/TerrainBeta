@@ -1,0 +1,12 @@
+{
+  "ui.button.release": {
+    "category": "ui",
+    "sounds": [
+      {
+        "name": "sounds/ui/button/release",
+        "volume": 1,
+        "load_on_low_memory": true
+      }
+    ]
+  }
+}
