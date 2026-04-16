@@ -24,7 +24,7 @@ const FORM_TITLE_KEYS = {
 const ACTIVE_PLAYERS = new Set();
 let configurationPromptPlayerId = "";
 const FORM_FADE_INTERVAL_TICKS = 20;
-const LOADING_FORM_TOTAL_TICKS = 1280;
+const LOADING_FORM_TOTAL_DURATION_MS = 64_000;
 const PRE_ACTIVATION_PLAYER_HOLD_HEIGHT = 105508;
 const PRE_ACTIVATION_SAFETY_INTERVAL_TICKS = 200;
 const HOLD_CHUNK_SIZE = 16;
@@ -88,6 +88,21 @@ const FORM_FADE_OPTIONS = {
 
 const waitTicks = (ticks) =>
   new Promise((resolve) => system.runTimeout(resolve, ticks));
+const waitMilliseconds = (durationMs) =>
+  new Promise((resolve) => {
+    const deadline = Date.now() + Math.max(0, durationMs);
+
+    const poll = () => {
+      if (Date.now() >= deadline) {
+        resolve();
+        return;
+      }
+
+      system.runTimeout(poll, 1);
+    };
+
+    system.runTimeout(poll, 1);
+  });
 const tryOrDefault = (callback, fallback) => {
   try {
     return callback();
@@ -336,22 +351,44 @@ function closePlayerForms(player) {
   warnOnError("Failed to close forms", () => uiManager.closeAllForms(player));
 }
 
-async function showTimedLoadingForm(player, generatorKey = "") {
+async function showTimedLoadingForm(
+  player,
+  generatorKey = "",
+  beforeDelayCallback = null,
+) {
   const loadingFormPromise =
     warnOnError("Failed to open loading form", () =>
       createLoadingTriggerForm(generatorKey).show(player),
     ) ?? Promise.resolve(undefined);
+  const loadingFormOpenedAtMs = Date.now();
+  let keepLoadingFormOpen = true;
 
-  await waitTicks(LOADING_FORM_TOTAL_TICKS);
+  try {
+    // Yield one tick so the loading form can render before synchronous setup work runs.
+    await waitTicks(1);
 
-  if (isPlayerValid(player)) {
-    closePlayerForms(player);
+    if (typeof beforeDelayCallback === "function") {
+      keepLoadingFormOpen = (await beforeDelayCallback()) !== false;
+    }
+
+    if (keepLoadingFormOpen) {
+      const elapsedMs = Math.max(0, Date.now() - loadingFormOpenedAtMs);
+      await waitMilliseconds(
+        Math.max(0, LOADING_FORM_TOTAL_DURATION_MS - elapsedMs),
+      );
+    }
+  } finally {
+    if (isPlayerValid(player)) {
+      closePlayerForms(player);
+    }
+
+    await loadingFormPromise.catch((error) => {
+      console.warn(`Loading form closed with error: ${error}`);
+    });
+    await waitTicks(1);
   }
 
-  await loadingFormPromise.catch((error) => {
-    console.warn(`Loading form closed with error: ${error}`);
-  });
-  await waitTicks(1);
+  return keepLoadingFormOpen;
 }
 
 function getChunkForLocation(location) {
@@ -513,38 +550,39 @@ async function openPersistentForm(player) {
   const stopLoopingFormFade = startLoopingFormFade(player);
 
   try {
-    await waitTicks(1);
-
     while (isPlayerValid(player) && !isWorldGenerationActivated()) {
       const response = await createConfigForm().show(player);
       if (response.canceled) {
-        await waitTicks(1);
         continue;
       }
 
       const submittedGeneratorConfig = buildSubmittedGeneratorConfig(
         response.formValues ?? [],
       );
-      stopLoopingFormFade();
 
       if (!isPlayerValid(player)) {
         return;
       }
 
-      saveStoredWorldgenConfigSubmission(submittedGeneratorConfig);
-      promotePreActivationHoldStateToInitializationReturnState(player);
-      clearPreActivationHoldStates();
-      const runtimeReady = initializeConfiguredWorldGenerationRuntime();
-      const generationStarted = startConfiguredWorldGeneration(player);
-      if (!runtimeReady || !generationStarted) {
-        return;
-      }
+      await showTimedLoadingForm(
+        player,
+        submittedGeneratorConfig.generatorKey,
+        () => {
+          stopLoopingFormFade();
 
-      if (!isPlayerValid(player)) {
-        return;
-      }
+          if (!isPlayerValid(player)) {
+            return false;
+          }
 
-      await showTimedLoadingForm(player, submittedGeneratorConfig.generatorKey);
+          saveStoredWorldgenConfigSubmission(submittedGeneratorConfig);
+          promotePreActivationHoldStateToInitializationReturnState(player);
+          clearPreActivationHoldStates();
+          const runtimeReady = initializeConfiguredWorldGenerationRuntime();
+          const generationStarted = startConfiguredWorldGeneration(player);
+
+          return runtimeReady && generationStarted && isPlayerValid(player);
+        },
+      );
       return;
     }
   } catch (error) {
@@ -589,16 +627,14 @@ system.run(() => {
 });
 
 world.afterEvents.playerSpawn.subscribe((event) => {
-  system.run(() => {
-    if (isWorldGenerationActivated()) {
-      return;
-    }
+  if (isWorldGenerationActivated()) {
+    return;
+  }
 
-    queueConfigurationForm(event.player);
-    if (configurationPromptPlayerId === getPlayerId(event.player)) {
-      ensurePreActivationPlayerSafety(event.player);
-    }
-  });
+  queueConfigurationForm(event.player);
+  if (configurationPromptPlayerId === getPlayerId(event.player)) {
+    ensurePreActivationPlayerSafety(event.player);
+  }
 });
 
 system.runInterval(() => {
