@@ -339,14 +339,6 @@ function createLoadingTriggerForm(generatorKey = "") {
     .button(tr("terrainbeta.loading.button"));
 }
 
-function createComparisonForm() {
-  return new ActionFormData()
-    .title(tr("terrainbeta.compare.title"))
-    .body(tr("terrainbeta.compare.body"))
-    .button(tr("terrainbeta.compare.button_1"))
-    .button(tr("terrainbeta.compare.button_2"));
-}
-
 function closePlayerForms(player) {
   warnOnError("Failed to close forms", () => uiManager.closeAllForms(player));
 }
@@ -616,10 +608,6 @@ function queueConfigurationForm(player) {
   void openPersistentForm(player);
 }
 
-const ITEM_USE_HANDLERS = {
-  "minecraft:blaze_rod": (player) => createComparisonForm().show(player),
-};
-
 system.run(() => {
   if (loadStoredWorldgenConfigSubmission()) {
     initializeConfiguredWorldGenerationRuntime();
@@ -655,14 +643,3 @@ system.runInterval(() => {
     ensurePreActivationPlayerSafety(selectedPlayer);
   }
 }, PRE_ACTIVATION_SAFETY_INTERVAL_TICKS);
-
-world.afterEvents.itemUse.subscribe(({ itemStack, source }) => {
-  if (!itemStack || !isPlayerValid(source) || isWorldGenerationActivated()) {
-    return;
-  }
-
-  const handler = ITEM_USE_HANDLERS[itemStack.typeId];
-  if (handler) {
-    void handler(source);
-  }
-});
