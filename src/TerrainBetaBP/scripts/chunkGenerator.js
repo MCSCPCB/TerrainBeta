@@ -46,6 +46,7 @@ const MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP = 4; // 3
 const MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION = 24; // 16
 const MAX_BACKGROUND_WORLD_WRITES_PER_TICK = 5;
 const MAX_BACKGROUND_DECORATION_PLANS_PER_TICK = 2;
+const MAX_SAFE_DEFAULT_SPAWN_DROP_BLOCKS = 3;
 let BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
   ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
   : 3;
@@ -301,6 +302,38 @@ function getPlayerBackgroundDirection(player) {
   }
 
   return { x: chunkStepX, z: chunkStepZ };
+}
+
+function getBackgroundDirectionalBiasDistance(request) {
+  return Math.max(
+    Math.abs(request.x - request.originX),
+    Math.abs(request.z - request.originZ),
+  );
+}
+
+function getBackgroundReturnDirection(request) {
+  return {
+    x: Math.sign(request.originX - request.x),
+    z: Math.sign(request.originZ - request.z),
+  };
+}
+
+function getBackgroundNeighborOffsets(request) {
+  let directionX = request.forwardX;
+  let directionZ = request.forwardZ;
+
+  if (
+    request.forwardBiasRadius <= 0
+    || getBackgroundDirectionalBiasDistance(request) >= request.forwardBiasRadius
+  ) {
+    const returnDirection = getBackgroundReturnDirection(request);
+    directionX = returnDirection.x;
+    directionZ = returnDirection.z;
+  }
+
+  return BACKGROUND_NEIGHBOR_OFFSETS_BY_DIRECTION.get(
+    `${directionX}|${directionZ}`,
+  ) ?? CARDINAL_CHUNK_OFFSETS;
 }
 
 function getPlayerForegroundMovementDirection(player) {
@@ -676,11 +709,17 @@ function shouldReplaceDefaultSpawnWithInitializationLanding(state, dimension, fo
 
   try {
     const defaultSpawnLocation = world.getDefaultSpawnLocation();
-    return getTopmostLandingLocation(
+    const landingLocation = getTopmostLandingLocation(
       dimension,
       defaultSpawnLocation.x,
       defaultSpawnLocation.z,
-    ) === null;
+    );
+    if (!landingLocation) {
+      return true;
+    }
+
+    const landingDrop = defaultSpawnLocation.y - landingLocation.y;
+    return landingDrop < 0 || landingDrop > MAX_SAFE_DEFAULT_SPAWN_DROP_BLOCKS;
   } catch (_error) {
     return true;
   }
@@ -1374,8 +1413,21 @@ function createBackgroundScanQueue(players) {
   for (const player of players) {
     const chunk = getPlayerChunk(player);
     const direction = getPlayerBackgroundDirection(player);
+    const forwardBiasRadius = BACKGROUND_LOOKAHEAD_CHUNKS;
 
-    enqueueBackgroundChunk(queue, visited, chunk.x, chunk.z, direction.x, direction.z);
+    enqueueBackgroundChunk(
+      queue,
+      visited,
+      chunk.x,
+      chunk.z,
+      {
+        forwardX: direction.x,
+        forwardZ: direction.z,
+        originX: chunk.x,
+        originZ: chunk.z,
+        forwardBiasRadius,
+      },
+    );
     if (direction.x === 0 && direction.z === 0) {
       continue;
     }
@@ -1386,8 +1438,13 @@ function createBackgroundScanQueue(players) {
         visited,
         chunk.x + direction.x * step,
         chunk.z + direction.z * step,
-        direction.x,
-        direction.z,
+        {
+          forwardX: direction.x,
+          forwardZ: direction.z,
+          originX: chunk.x,
+          originZ: chunk.z,
+          forwardBiasRadius,
+        },
       );
     }
   }
@@ -1395,20 +1452,27 @@ function createBackgroundScanQueue(players) {
   return { queue, visited };
 }
 
-function enqueueBackgroundChunk(queue, visited, chunkX, chunkZ, forwardX = 0, forwardZ = 0) {
+function enqueueBackgroundChunk(queue, visited, chunkX, chunkZ, options = {}) {
   const key = chunkKey(chunkX, chunkZ);
   if (visited.has(key)) {
     return;
   }
 
   visited.add(key);
-  queue.push({ key, x: chunkX, z: chunkZ, forwardX, forwardZ });
+  queue.push({
+    key,
+    x: chunkX,
+    z: chunkZ,
+    forwardX: options.forwardX ?? 0,
+    forwardZ: options.forwardZ ?? 0,
+    originX: options.originX ?? chunkX,
+    originZ: options.originZ ?? chunkZ,
+    forwardBiasRadius: Math.max(0, options.forwardBiasRadius ?? 0),
+  });
 }
 
 function enqueueBackgroundNeighbors(queue, visited, request) {
-  const neighborOffsets = BACKGROUND_NEIGHBOR_OFFSETS_BY_DIRECTION.get(
-    `${request.forwardX}|${request.forwardZ}`,
-  ) ?? CARDINAL_CHUNK_OFFSETS;
+  const neighborOffsets = getBackgroundNeighborOffsets(request);
 
   for (const offset of neighborOffsets) {
     enqueueBackgroundChunk(
@@ -1416,8 +1480,13 @@ function enqueueBackgroundNeighbors(queue, visited, request) {
       visited,
       request.x + offset.x,
       request.z + offset.z,
-      request.forwardX,
-      request.forwardZ,
+      {
+        forwardX: request.forwardX,
+        forwardZ: request.forwardZ,
+        originX: request.originX,
+        originZ: request.originZ,
+        forwardBiasRadius: request.forwardBiasRadius,
+      },
     );
   }
 }
