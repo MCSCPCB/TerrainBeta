@@ -3,7 +3,7 @@ import { system, world } from "@minecraft/server";
 const ANCHOR_TYPE_ID = "terrainbeta:alpha_fog_anchor";
 const DIMENSION_IDS = ["overworld", "nether", "the_end"];
 const CHECK_INTERVAL = 20;
-const REPOSITION_DISTANCE = 8;
+const REPOSITION_DISTANCE = 6;
 const REPOSITION_DISTANCE_SQUARED = REPOSITION_DISTANCE * REPOSITION_DISTANCE;
 
 function getRenderId(playerId) {
