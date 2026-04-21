@@ -1,0 +1,22 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.terrainbeta.alpha_fog_anchor.offset": {
+      "loop": true,
+      "bones": {
+        "elementsSkybox": {
+          "position": [
+            "16*v.cam_pos_x",
+            "16*v.cam_pos_y",
+            "-16*v.cam_pos_z"
+          ],
+          "rotation": [
+            "- query.body_x_rotation",
+            "- query.body_y_rotation",
+            0.0
+          ]
+        }
+      }
+    }
+  }
+}

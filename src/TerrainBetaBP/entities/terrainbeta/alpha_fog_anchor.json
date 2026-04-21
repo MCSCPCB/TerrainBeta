@@ -1,0 +1,69 @@
+{
+  "format_version": "1.20.60",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "terrainbeta:alpha_fog_anchor",
+      "is_spawnable": false,
+      "is_summonable": true,
+      "runtime_identifier": "minecraft:snowball",
+      "properties": {
+        "p:render_id": {
+          "type": "int",
+          "range": [
+            -10000000,
+            10000000
+          ],
+          "client_sync": true,
+          "default": 0
+        }
+      }
+    },
+    "components": {
+      "minecraft:collision_box": {
+        "width": 0,
+        "height": 0
+      },
+      "minecraft:conditional_bandwidth_optimization": {},
+      "minecraft:damage_sensor": {
+        "triggers": [
+          {
+            "deals_damage": false
+          }
+        ]
+      },
+      "minecraft:fire_immune": {},
+      "minecraft:is_hidden_when_invisible": {},
+      "minecraft:knockback_resistance": {
+        "value": 1
+      },
+      "minecraft:physics": {
+        "has_collision": false,
+        "has_gravity": false
+      },
+      "minecraft:pushable": {
+        "is_pushable": false,
+        "is_pushable_by_piston": false
+      },
+      "minecraft:type_family": {
+        "family": [
+          "f:terrainbeta",
+          "f:alpha_fog_anchor"
+        ]
+      }
+    },
+    "component_groups": {
+      "g:instant_despawn": {
+        "minecraft:instant_despawn": {}
+      }
+    },
+    "events": {
+      "e:instant_despawn": {
+        "add": {
+          "component_groups": [
+            "g:instant_despawn"
+          ]
+        }
+      }
+    }
+  }
+}
