@@ -1,0 +1,37 @@
+{
+  "format_version": "1.10.0",
+  "render_controllers": {
+    "controller.render.terrainbeta.alpha_fog_anchor.depth": {
+      "geometry": "Geometry.alpha_fog_clip_depth",
+      "textures": [
+        "Texture.alpha_fog_shell"
+      ],
+      "ignore_lighting": true,
+      "on_fire_color": {},
+      "materials": [
+        {
+          "*": "Material.default"
+        },
+        {
+          "skyboxdepthtest*": "Material.skyboxdepthtest"
+        }
+      ]
+    },
+    "controller.render.terrainbeta.alpha_fog_anchor.color": {
+      "geometry": "Geometry.alpha_fog_clip_color",
+      "textures": [
+        "Texture.alpha_fog_shell"
+      ],
+      "ignore_lighting": true,
+      "on_fire_color": {},
+      "materials": [
+        {
+          "*": "Material.default"
+        },
+        {
+          "skyboxcolorwrite*": "Material.skyboxcolorwrite"
+        }
+      ]
+    }
+  }
+}

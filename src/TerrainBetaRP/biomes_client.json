@@ -1,7 +1,7 @@
 {
   "biomes": {
     "default": {
-      "fog_identifier": "terrainBeta:fog_alpha"
+      "fog_identifier": "terrainbeta:fog_alpha"
     }
   }
 }
