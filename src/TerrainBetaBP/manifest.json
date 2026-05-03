@@ -1,5 +1,8 @@
 {
 	"format_version": 1,
+	"metadata": {
+		"product_type": "addon"
+	},
 	"header": {
 		"name": "pack.name",
 		"description": "作者:MINECRAFT-SCPCB",
