@@ -1,62 +1,64 @@
 {
-	"format_version": 2,
-	"metadata": {
-		"product_type": "addon"
-	},
-	"header": {
-		"name": "pack.name",
-		"description": "作者:MINECRAFT-SCPCB",
-		"uuid": "146e30a2-181f-452f-9ca7-72b1abd3a677",
-		"version": [
-			1,
-			0,
-			0
-		],
-		"min_engine_version": [
-			1,
-			21,
-			51
-		]
-	},
-	"modules": [
-		{
-			"description": "作者:MINECRAFT-SCPCB",
-			"uuid": "453835bb-d073-4c20-91bb-48a0f475a9df",
-			"version": [
-				1,
-				0,
-				0
-			],
-			"type": "data"
-		},
-		{
-			"type": "script",
-			"language": "javascript",
-			"uuid": "8dbe48bc-f903-4898-a0a0-a5863a0b7c88",
-			"entry": "scripts/main.js",
-			"version": [
-				1,
-				0,
-				0
-			]
-		}
-	],
-	"dependencies": [
-		{
-			"uuid": "b4f053d9-0c8b-4308-966c-cd9c0041efdb",
-			"version": [
-				1,
-				0,
-				0
-			]
-		},
-		{
-			"module_name": "@minecraft/server",
-			"version": "1.18.0"
-		},
-		{
-			"module_name": "@minecraft/server-ui",
-			"version": "1.3.0"
-		}
-	]
+  "format_version": 2,
+  "metadata": {
+    "authors": [
+      "MINECRAFT-SCPCB"
+    ],
+    "product_type": "addon"
+  },
+  "header": {
+    "name": "Terrain Beta Behavior Pack",
+    "description": "Java Alpha/Beta world generation and more!\n§iMade by: MINECRAFT-SCPCB",
+    "uuid": "b82cb4e5-889a-4538-bd92-c24546a99b52",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      101
+    ]
+  },
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "bc5faefb-1482-444f-824d-a8fc2656c664",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "script",
+      "language": "javascript",
+      "entry": "scripts/main.js",
+      "uuid": "fd700187-1b44-4b31-bce6-1ddb74af1071",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "39e4614e-335c-4dbd-a080-7b9fb7a16d57",
+      "version": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.18.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "1.3.0"
+    }
+  ]
 }

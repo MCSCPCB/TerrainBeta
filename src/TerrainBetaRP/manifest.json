@@ -1,23 +1,46 @@
 {
   "format_version": 2,
+  "metadata": {
+    "authors": [
+      "MINECRAFT-SCPCB"
+    ],
+    "product_type": "addon"
+  },
   "header": {
-    "name": "Server Form Resources",
-    "description": "JSON UI overrides for the persistent form loading screen.",
-    "min_engine_version": [1, 19, 60],
+    "name": "Terrain Beta Resources Pack",
+    "description": "Java Alpha/Beta world generation and more!\n§iMade by: MINECRAFT-SCPCB",
     "uuid": "39e4614e-335c-4dbd-a080-7b9fb7a16d57",
-    "version": [1, 0, 0]
+    "pack_scope": "world",
+    "version": [
+      1,
+      0,
+      0
+    ],
+    "min_engine_version": [
+      1,
+      21,
+      101
+    ]
   },
   "modules": [
     {
       "type": "resources",
       "uuid": "de421818-e892-4808-b8d3-4fc8ebae7756",
-      "version": [1, 0, 0]
+      "version": [
+        1,
+        0,
+        0
+      ]
     }
   ],
   "dependencies": [
     {
       "uuid": "b82cb4e5-889a-4538-bd92-c24546a99b52",
-      "version": [1, 0, 0]
+      "version": [
+        1,
+        0,
+        0
+      ]
     }
   ]
 }
