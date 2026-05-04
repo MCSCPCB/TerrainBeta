@@ -7,6 +7,8 @@ export const WORLDGEN_CONFIGURATION_PROPERTY = "terrainbeta:worldgen_config";
 export const WORLDGEN_ACTIVATED_PROPERTY = "terrainbeta:worldgen_activated";
 export const WORLDGEN_INITIALIZATION_RETURN_PROPERTY = "terrainbeta:initialization_return";
 export const WORLDGEN_PRE_ACTIVATION_HOLD_PROPERTY = "terrainbeta:pre_activation_hold";
+export const MIN_WORLD_VERTICAL_OFFSET = -512;
+export const MAX_WORLD_VERTICAL_OFFSET = 384;
 
 const PLAYER_CONFIGURABLE_OPTION_KEYS = Object.freeze([
   "ores",
@@ -26,6 +28,7 @@ const PLAYER_CONFIGURABLE_OPTION_KEY_SET = new Set(
 export const PLAYER_CONFIGURABLE_FIELDS = Object.freeze({
   generatorKey: true,
   seed: true,
+  worldVerticalOffset: true,
   farlandsCoordinate: true,
   optionKeys: PLAYER_CONFIGURABLE_OPTION_KEYS,
 });
@@ -108,6 +111,17 @@ function getVisibleOptionKeys(generatorType) {
   return PLAYER_VISIBLE_OPTION_KEYS_BY_GENERATOR[generatorType] ?? [];
 }
 
+function normalizeWorldVerticalOffset(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(
+    MIN_WORLD_VERTICAL_OFFSET,
+    Math.min(MAX_WORLD_VERTICAL_OFFSET, Math.trunc(value)),
+  );
+}
+
 export function loadStoredWorldgenConfigSubmission() {
   return tryParseJson(world.getDynamicProperty(WORLDGEN_CONFIGURATION_PROPERTY));
 }
@@ -159,6 +173,12 @@ export function sanitizeSubmittedWorldgenConfig(submittedConfig) {
     sanitizedConfig.seed = `${submittedGeneratorConfig.seed}`;
   }
 
+  if (submittedGeneratorConfig.worldVerticalOffset !== undefined) {
+    sanitizedConfig.worldVerticalOffset = normalizeWorldVerticalOffset(
+      Number(submittedGeneratorConfig.worldVerticalOffset),
+    );
+  }
+
   if (submittedGeneratorConfig.farlandsCoordinate !== undefined) {
     sanitizedConfig.farlandsCoordinate = Number(
       submittedGeneratorConfig.farlandsCoordinate,
@@ -188,9 +208,18 @@ export function resolveConfiguredGeneratorSelection(
   const generatorType = normalizeGeneratorKey(submittedConfig.generatorKey);
   const generatorConfig = cloneConfig(getConfiguredGeneratorOrThrow(generatorType));
   const submittedGeneratorConfig = submittedConfig.config ?? {};
+  const submittedWorldVerticalOffset = Number(
+    submittedGeneratorConfig.worldVerticalOffset,
+  );
 
   if (submittedGeneratorConfig.seed !== undefined) {
     generatorConfig.seed = `${submittedGeneratorConfig.seed}`;
+  }
+
+  if (Number.isFinite(submittedWorldVerticalOffset)) {
+    generatorConfig.worldVerticalOffset = normalizeWorldVerticalOffset(
+      submittedWorldVerticalOffset,
+    );
   }
 
   if (Number.isFinite(submittedGeneratorConfig.farlandsCoordinate)) {

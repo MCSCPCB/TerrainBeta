@@ -3,6 +3,8 @@ import { ActionFormData, ModalFormData, uiManager } from "@minecraft/server-ui";
 
 import { GENERATOR_CONFIGS } from "./worldgen/config/generators.js";
 import {
+  MAX_WORLD_VERTICAL_OFFSET,
+  MIN_WORLD_VERTICAL_OFFSET,
   PLAYER_VISIBLE_OPTION_KEYS_BY_GENERATOR,
   WORLDGEN_INITIALIZATION_RETURN_PROPERTY,
   WORLDGEN_PRE_ACTIVATION_HOLD_PROPERTY,
@@ -48,16 +50,17 @@ const DEFAULT_GENERATOR_INDEX = GENERATOR_KEYS.indexOf(DEFAULT_GENERATOR_KEY);
 const CONFIG_FIELD_INDEX = {
   seed: 0,
   generator: 1,
-  farlandsCoordinate: 2,
-  ores: 3,
-  trees: 4,
-  flora: 5,
-  springs: 6,
-  snow: 7,
-  caves: 8,
-  lakes: 9,
-  snowCovered: 10,
-  randomFeatures: 11,
+  worldVerticalOffset: 2,
+  farlandsCoordinate: 3,
+  ores: 4,
+  trees: 5,
+  flora: 6,
+  springs: 7,
+  snow: 8,
+  caves: 9,
+  lakes: 10,
+  snowCovered: 11,
+  randomFeatures: 12,
 };
 const OPTION_FIELD_KEYS = [
   "ores",
@@ -219,6 +222,31 @@ function normalizeFarlandsCoordinate(rawValue, fallbackValue) {
   );
 }
 
+function normalizeWorldVerticalOffset(rawValue, fallbackValue) {
+  const trimmed = `${rawValue ?? ""}`.trim();
+  if (trimmed.length === 0) {
+    return clampInteger(
+      fallbackValue,
+      MIN_WORLD_VERTICAL_OFFSET,
+      MAX_WORLD_VERTICAL_OFFSET,
+    );
+  }
+
+  if (/^[+-]?\d+$/.test(trimmed)) {
+    return clampInteger(
+      Number(trimmed),
+      MIN_WORLD_VERTICAL_OFFSET,
+      MAX_WORLD_VERTICAL_OFFSET,
+    );
+  }
+
+  return clampInteger(
+    fallbackValue,
+    MIN_WORLD_VERTICAL_OFFSET,
+    MAX_WORLD_VERTICAL_OFFSET,
+  );
+}
+
 function getGeneratorKeyFromIndex(index) {
   return Number.isInteger(index) && index >= 0 && index < GENERATOR_KEYS.length
     ? GENERATOR_KEYS[index]
@@ -232,6 +260,10 @@ function buildSubmittedGeneratorConfig(formValues) {
   const visibleOptions = GENERATOR_VISIBLE_OPTIONS[generatorKey] ?? new Set();
 
   config.seed = normalizeSeed(formValues?.[CONFIG_FIELD_INDEX.seed]);
+  config.worldVerticalOffset = normalizeWorldVerticalOffset(
+    formValues?.[CONFIG_FIELD_INDEX.worldVerticalOffset],
+    config.worldVerticalOffset,
+  );
   config.farlandsCoordinate = normalizeFarlandsCoordinate(
     formValues?.[CONFIG_FIELD_INDEX.farlandsCoordinate],
     config.farlandsCoordinate,
@@ -310,6 +342,11 @@ function createConfigForm() {
       tr("terrainbeta.form.generator.label"),
       GENERATOR_LABELS,
       DEFAULT_GENERATOR_INDEX,
+    )
+    .textField(
+      tr("terrainbeta.form.base_height.label"),
+      tr("terrainbeta.form.base_height.placeholder"),
+      `${GENERATOR_CONFIGS[DEFAULT_GENERATOR_KEY].worldVerticalOffset ?? 0}`,
     )
     .textField(
       tr("terrainbeta.form.farlands.label"),

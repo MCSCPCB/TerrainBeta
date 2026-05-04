@@ -38,9 +38,13 @@ function updateProperty(entity, propertyId, value) {
   }
 }
 
+function syncAnchorProperties(anchor, renderId) {
+  updateProperty(anchor, "p:render_id", renderId);
+}
+
 function spawnAnchor(player, renderId, targetLocation) {
   const anchor = player.dimension.spawnEntity(ANCHOR_TYPE_ID, targetLocation);
-  updateProperty(anchor, "p:render_id", renderId);
+  syncAnchorProperties(anchor, renderId);
   return anchor;
 }
 
@@ -76,7 +80,7 @@ function ensureAnchorForPlayer(player, anchorsByRenderId) {
     }
   }
 
-  updateProperty(anchor, "p:render_id", renderId);
+  syncAnchorProperties(anchor, renderId);
   return anchor;
 }
 

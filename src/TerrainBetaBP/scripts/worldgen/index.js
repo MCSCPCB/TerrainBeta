@@ -18,8 +18,12 @@ export function createConfiguredWorldGenerator() {
     generatorConfig,
   } = resolveConfiguredGeneratorSelection();
   const factory = getGeneratorFactory(generatorType);
+  const worldGenerator = factory(generatorConfig);
 
-  return factory(generatorConfig);
+  return {
+    ...worldGenerator,
+    worldVerticalOffset: generatorConfig.worldVerticalOffset ?? 0,
+  };
 }
 
 export {

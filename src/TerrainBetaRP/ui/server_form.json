@@ -951,38 +951,43 @@
         }
       },
       {
-        "farlands_input@server_form.form_menu_custom_input": {
+        "base_height_input@server_form.form_menu_custom_input": {
           "collection_index": 2
         }
       },
       {
-        "ores_toggle@server_form.form_menu_custom_toggle": {
+        "farlands_input@server_form.form_menu_custom_input": {
           "collection_index": 3
         }
       },
       {
-        "trees_toggle@server_form.form_menu_custom_toggle": {
+        "ores_toggle@server_form.form_menu_custom_toggle": {
           "collection_index": 4
         }
       },
       {
-        "flora_toggle@server_form.form_menu_custom_toggle": {
+        "trees_toggle@server_form.form_menu_custom_toggle": {
           "collection_index": 5
         }
       },
       {
-        "springs_toggle@server_form.form_menu_custom_toggle": {
+        "flora_toggle@server_form.form_menu_custom_toggle": {
           "collection_index": 6
         }
       },
       {
-        "snow_toggle@server_form.form_menu_custom_toggle": {
+        "springs_toggle@server_form.form_menu_custom_toggle": {
           "collection_index": 7
         }
       },
       {
+        "snow_toggle@server_form.form_menu_custom_toggle": {
+          "collection_index": 8
+        }
+      },
+      {
         "caves_toggle@server_form.form_menu_custom_toggle": {
-          "collection_index": 8,
+          "collection_index": 9,
           "bindings": [
             {
               "binding_type": "view",
@@ -996,7 +1001,7 @@
       },
       {
         "lakes_toggle@server_form.form_menu_custom_toggle": {
-          "collection_index": 9,
+          "collection_index": 10,
           "bindings": [
             {
               "binding_type": "view",
@@ -1010,7 +1015,7 @@
       },
       {
         "snow_covered_toggle@server_form.form_menu_custom_toggle": {
-          "collection_index": 10,
+          "collection_index": 11,
           "bindings": [
             {
               "binding_type": "view",
@@ -1024,7 +1029,7 @@
       },
       {
         "random_features_toggle@server_form.form_menu_custom_toggle": {
-          "collection_index": 11,
+          "collection_index": 12,
           "bindings": [
             {
               "binding_type": "view",

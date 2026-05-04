@@ -5,6 +5,7 @@ export const GENERATOR_CONFIGS = {
     seed: "-1",
     storageKey: "alpha1016GeneratedChunks",
     farlandsCoordinate: 12550821,
+    worldVerticalOffset: 0,
     runtimeProfile: {
       initializationCompletionMode: "center_landing",
       backgroundLookaheadChunks: 3,
@@ -36,6 +37,7 @@ export const GENERATOR_CONFIGS = {
     storageKey: "beta173GeneratedChunks",
     // Positive-world Far Lands start. 12550821 keeps classic Beta 1.7.3 behavior.
     farlandsCoordinate: 12550821,
+    worldVerticalOffset: 0,
     runtimeProfile: {
       initializationCompletionMode: "center_landing",
       backgroundLookaheadChunks: 3,
@@ -70,6 +72,7 @@ export const GENERATOR_CONFIGS = {
     seed: "-1",
     storageKey: "beta173SkyGeneratedChunks",
     farlandsCoordinate: 12550821,
+    worldVerticalOffset: 0,
     runtimeProfile: {
       initializationCompletionMode: "populated",
       backgroundLookaheadChunks: 2,
@@ -97,6 +100,7 @@ export const GENERATOR_CONFIGS = {
     seed: "-1",
     storageKey: "beta173TwilightForestGeneratedChunks",
     farlandsCoordinate: 12550821,
+    worldVerticalOffset: 0,
     runtimeProfile: {
       initializationCompletionMode: "center_landing",
       backgroundLookaheadChunks: 1,

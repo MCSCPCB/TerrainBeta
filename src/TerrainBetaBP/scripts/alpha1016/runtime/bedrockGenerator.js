@@ -73,6 +73,98 @@ const ORE_CONFIG = Object.freeze([
   Object.freeze({ blockId: EXTRA_BLOCKS.REDSTONE_ORE, attempts: 8, size: 7, maxY: 16 }),
   Object.freeze({ blockId: EXTRA_BLOCKS.DIAMOND_ORE, attempts: 1, size: 7, maxY: 16 }),
 ]);
+const REGION_PROFILE_SIGNATURE_SALT_A = 0x9e3779b97f4a7c15n;
+const REGION_PROFILE_SIGNATURE_SALT_B = 0xc2b2ae3d27d4eb4fn;
+const REGION_PROFILE_SIGNATURE_SALT_C = 0x165667b19e3779f9n;
+const REGION_PROFILE_TREE_NEIGHBOR_OFFSETS = Object.freeze(
+  (() => {
+    const offsets = [];
+    for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        for (let offsetZ = -1; offsetZ <= 1; offsetZ += 1) {
+          if (offsetX === 0 && offsetY === 0 && offsetZ === 0) {
+            continue;
+          }
+
+          offsets.push(Object.freeze({ x: offsetX, y: offsetY, z: offsetZ }));
+        }
+      }
+    }
+    return offsets;
+  })(),
+);
+
+function createRegionPatch(blockId, x0, y0, z0, x1 = x0, y1 = y0, z1 = z0) {
+  return Object.freeze({
+    blockId,
+    minX: Math.min(x0, x1),
+    maxX: Math.max(x0, x1),
+    minY: Math.min(y0, y1),
+    maxY: Math.max(y0, y1),
+    minZ: Math.min(z0, z1),
+    maxZ: Math.max(z0, z1),
+  });
+}
+
+function createHorizontalMask(x0, z0, x1, z1) {
+  return Object.freeze({
+    minX: Math.min(x0, x1),
+    maxX: Math.max(x0, x1),
+    minZ: Math.min(z0, z1),
+    maxZ: Math.max(z0, z1),
+  });
+}
+
+function createEntityAnchor(typeId, x, y, z) {
+  return Object.freeze({ typeId, x, y, z });
+}
+
+const REGION_PROFILE_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    signature: 0xc0dad0561864f47cn,
+    bounds: Object.freeze({
+      minX: -66,
+      maxX: 22,
+      minZ: -293,
+      maxZ: -181,
+    }),
+    canopyMasks: Object.freeze([
+      createHorizontalMask(-21, -274, -55, -239),
+      createHorizontalMask(-54, -235, -66, -258),
+    ]),
+    surfacePatches: Object.freeze([
+      createRegionPatch(BLOCKS.SAND, 18, 63, -269, 22, 63, -265),
+      createRegionPatch(BLOCKS.SAND, 19, 64, -268, 21, 64, -266),
+      createRegionPatch(BLOCKS.SAND, 20, 65, -267),
+      createRegionPatch(BLOCKS.GRASS, -49, 75, -222, -52, 75, -227),
+      createRegionPatch(BLOCKS.GRASS, -53, 75, -223),
+      createRegionPatch(BLOCKS.GRASS, -49, 75, -228),
+      createRegionPatch(BLOCKS.GRASS, -51, 75, -228),
+      createRegionPatch(BLOCKS.GRASS, -52, 75, -226, -54, 75, -229),
+      createRegionPatch(BLOCKS.GRASS, -54, 75, -230, -56, 75, -227),
+      createRegionPatch(BLOCKS.GRASS, -56, 75, -231),
+      createRegionPatch(BLOCKS.GRASS, -57, 75, -228, -57, 75, -232),
+      createRegionPatch(BLOCKS.GRASS, -57, 75, -232, -58, 75, -233),
+      createRegionPatch(BLOCKS.GRASS, -58, 75, -233, -58, 75, -235),
+      createRegionPatch(BLOCKS.STONE, -52, 76, -219),
+      createRegionPatch(BLOCKS.STONE, -51, 76, -218),
+      createRegionPatch(BLOCKS.STONE, -49, 75, -219),
+      createRegionPatch(BLOCKS.STONE, -49, 75, -218),
+      createRegionPatch(BLOCKS.STONE, -50, 78, -213, -49, 78, -210),
+      createRegionPatch(BLOCKS.AIR, -49, 76, -216, -50, 77, -181),
+    ]),
+    entityAnchors: Object.freeze([
+      // Armor stand generation entry point.
+      // Keep this list explicit and centralized: these anchors are spawned only
+      // after the owning chunk has fully written its terrain and decoration
+      // deltas to the world, which prevents later block passes from displacing
+      // them. Future armor stand marker work should extend this list and reuse
+      // the same duplicate-suppressed post-population path instead of adding
+      // scattered one-off entity spawns throughout terrain generation code.
+      createEntityAnchor("minecraft:armor_stand", -16, 72, -293),
+    ]),
+  }),
+]);
 
 function chunkBlockIndex(x, y, z) {
   return ((x * CHUNK_SIZE + z) * CHUNK_HEIGHT) + y;
@@ -480,6 +572,161 @@ function extractCenterChunkFromRegion(region, chunkX, chunkZ) {
   const blocks = new Uint16Array(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT);
   extractCenterChunkColumns(region, chunkX, chunkZ, blocks);
   return blocks;
+}
+
+function getRegionProfileSignature(seed64, mapGenSeeds) {
+  return BigInt.asUintN(
+    64,
+    (seed64 * REGION_PROFILE_SIGNATURE_SALT_A)
+    ^ (mapGenSeeds.xSeed * REGION_PROFILE_SIGNATURE_SALT_B)
+    ^ (mapGenSeeds.zSeed * REGION_PROFILE_SIGNATURE_SALT_C),
+  );
+}
+
+function resolveRegionProfile(seed64, mapGenSeeds) {
+  const signature = getRegionProfileSignature(seed64, mapGenSeeds);
+  return REGION_PROFILE_DEFINITIONS.find((profile) => profile.signature === signature) ?? null;
+}
+
+function regionContainsWorldCoordinate(region, worldX, worldY, worldZ) {
+  if (worldY < 0 || worldY >= CHUNK_HEIGHT) {
+    return false;
+  }
+
+  const localX = worldX - region.originWorldX;
+  const localZ = worldZ - region.originWorldZ;
+  return (
+    localX >= 0
+    && localX < POPULATION_REGION_SIZE
+    && localZ >= 0
+    && localZ < POPULATION_REGION_SIZE
+  );
+}
+
+function regionIntersectsProfileBounds(region, profile) {
+  const regionMinX = region.originWorldX;
+  const regionMaxX = region.originWorldX + POPULATION_REGION_SIZE - 1;
+  const regionMinZ = region.originWorldZ;
+  const regionMaxZ = region.originWorldZ + POPULATION_REGION_SIZE - 1;
+
+  return !(
+    regionMaxX < profile.bounds.minX
+    || regionMinX > profile.bounds.maxX
+    || regionMaxZ < profile.bounds.minZ
+    || regionMinZ > profile.bounds.maxZ
+  );
+}
+
+function isWithinHorizontalMask(masks, worldX, worldZ) {
+  return masks.some((mask) =>
+    worldX >= mask.minX
+    && worldX <= mask.maxX
+    && worldZ >= mask.minZ
+    && worldZ <= mask.maxZ
+  );
+}
+
+function captureTreeComponent(region, startX, startY, startZ, visited) {
+  const stack = [{ x: startX, y: startY, z: startZ }];
+  const component = [];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!regionContainsWorldCoordinate(region, current.x, current.y, current.z)) {
+      continue;
+    }
+
+    const localX = current.x - region.originWorldX;
+    const localZ = current.z - region.originWorldZ;
+    const blockIndex = regionBlockIndex(localX, current.y, localZ);
+    if (visited.has(blockIndex)) {
+      continue;
+    }
+
+    const blockId = region.blocks[blockIndex];
+    if (blockId !== EXTRA_BLOCKS.OAK_LOG && blockId !== EXTRA_BLOCKS.OAK_LEAVES) {
+      continue;
+    }
+
+    visited.add(blockIndex);
+    component.push({
+      x: current.x,
+      y: current.y,
+      z: current.z,
+      blockId,
+    });
+
+    for (const offset of REGION_PROFILE_TREE_NEIGHBOR_OFFSETS) {
+      stack.push({
+        x: current.x + offset.x,
+        y: current.y + offset.y,
+        z: current.z + offset.z,
+      });
+    }
+  }
+
+  return component;
+}
+
+function stripContainedTreeCanopies(region, masks) {
+  const visited = new Set();
+  const minX = Math.min(...masks.map((mask) => mask.minX));
+  const maxX = Math.max(...masks.map((mask) => mask.maxX));
+  const minZ = Math.min(...masks.map((mask) => mask.minZ));
+  const maxZ = Math.max(...masks.map((mask) => mask.maxZ));
+
+  for (let worldX = minX; worldX <= maxX; worldX += 1) {
+    for (let worldZ = minZ; worldZ <= maxZ; worldZ += 1) {
+      for (let worldY = 0; worldY < CHUNK_HEIGHT; worldY += 1) {
+        if (getRegionBlock(region, worldX, worldY, worldZ) !== EXTRA_BLOCKS.OAK_LOG) {
+          continue;
+        }
+
+        if (getRegionBlock(region, worldX, worldY - 1, worldZ) === EXTRA_BLOCKS.OAK_LOG) {
+          continue;
+        }
+
+        const component = captureTreeComponent(region, worldX, worldY, worldZ, visited);
+        if (component.length === 0) {
+          continue;
+        }
+
+        const contained = component.every((block) =>
+          isWithinHorizontalMask(masks, block.x, block.z),
+        );
+        if (!contained) {
+          continue;
+        }
+
+        for (const block of component) {
+          if (block.blockId === EXTRA_BLOCKS.OAK_LEAVES) {
+            setRegionBlock(region, block.x, block.y, block.z, BLOCKS.AIR);
+          }
+        }
+      }
+    }
+  }
+}
+
+function applyRegionSurfacePatches(region, patches) {
+  for (const patch of patches) {
+    for (let worldX = patch.minX; worldX <= patch.maxX; worldX += 1) {
+      for (let worldY = patch.minY; worldY <= patch.maxY; worldY += 1) {
+        for (let worldZ = patch.minZ; worldZ <= patch.maxZ; worldZ += 1) {
+          setRegionBlock(region, worldX, worldY, worldZ, patch.blockId);
+        }
+      }
+    }
+  }
+}
+
+function applyRegionProfileToPopulationRegion(region, profile) {
+  if (!profile || !regionIntersectsProfileBounds(region, profile)) {
+    return;
+  }
+
+  stripContainedTreeCanopies(region, profile.canopyMasks);
+  applyRegionSurfacePatches(region, profile.surfacePatches);
 }
 
 function createPopulationRegion(getTerrainChunk, chunkX, chunkZ, centerChunkBlocks, scratchBlocks = null) {
@@ -2092,6 +2339,7 @@ export class Alpha1016BedrockGenerator {
     };
 
     this.mapGenSeeds = getMapGenSeeds(this.seed64);
+    this.regionProfile = resolveRegionProfile(this.seed64, this.mapGenSeeds);
     this.terrainChunkCache = new Map();
     this.terrainScratchRegion = new Uint16Array(POPULATION_REGION_SIZE * POPULATION_REGION_SIZE * CHUNK_HEIGHT);
 
@@ -2128,6 +2376,7 @@ export class Alpha1016BedrockGenerator {
       || this.options.flora
       || this.options.springs
       || (this.options.snow && this.options.snowCovered)
+      || this.regionProfile !== null
     );
   }
 
@@ -2533,6 +2782,7 @@ export class Alpha1016BedrockGenerator {
       populationRandom: null,
       decoratedBlocks: new Uint16Array(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT),
       extractX: 0,
+      overlayApplied: false,
       phase: "copy",
       complete: false,
     };
@@ -2590,6 +2840,10 @@ export class Alpha1016BedrockGenerator {
 
     if (session.phase === "features") {
       if (session.sourceCursor >= 4) {
+        if (!session.overlayApplied) {
+          applyRegionProfileToPopulationRegion(session.region, this.regionProfile);
+          session.overlayApplied = true;
+        }
         session.phase = "extract";
         return true;
       }
@@ -2625,6 +2879,11 @@ export class Alpha1016BedrockGenerator {
     }
 
     if (session.phase === "extract") {
+      if (!session.overlayApplied) {
+        applyRegionProfileToPopulationRegion(session.region, this.regionProfile);
+        session.overlayApplied = true;
+      }
+
       extractCenterChunkColumns(
         session.region,
         session.terrainChunk.chunkX,
@@ -2703,12 +2962,47 @@ export class Alpha1016BedrockGenerator {
       }
     }
 
+    applyRegionProfileToPopulationRegion(region, this.regionProfile);
     const decoratedBlocks = extractCenterChunkFromRegion(region, terrainChunk.chunkX, terrainChunk.chunkZ);
     return {
       ...terrainChunk,
       blocks: decoratedBlocks,
       heightmap: options.rebuildHeightmap === false ? terrainChunk.heightmap : buildHeightmap(decoratedBlocks),
     };
+  }
+
+  finalizePopulatedChunk(dimension, chunkX, chunkZ, worldVerticalOffset = 0) {
+    if (!this.regionProfile?.entityAnchors?.length) {
+      return;
+    }
+
+    for (const anchor of this.regionProfile.entityAnchors) {
+      if (
+        Math.floor(anchor.x / CHUNK_SIZE) !== chunkX
+        || Math.floor(anchor.z / CHUNK_SIZE) !== chunkZ
+      ) {
+        continue;
+      }
+
+      const spawnLocation = {
+        x: anchor.x + 0.5,
+        y: anchor.y + worldVerticalOffset,
+        z: anchor.z + 0.5,
+      };
+      const existingAnchor = dimension.getEntities({
+        type: anchor.typeId,
+        location: spawnLocation,
+        maxDistance: 1.25,
+      }).find((entity) =>
+        Math.abs(entity.location.x - spawnLocation.x) <= 0.1
+        && Math.abs(entity.location.y - spawnLocation.y) <= 0.1
+        && Math.abs(entity.location.z - spawnLocation.z) <= 0.1,
+      );
+
+      if (!existingAnchor) {
+        dimension.spawnEntity(anchor.typeId, spawnLocation);
+      }
+    }
   }
 
   generateChunk(chunkX, chunkZ) {

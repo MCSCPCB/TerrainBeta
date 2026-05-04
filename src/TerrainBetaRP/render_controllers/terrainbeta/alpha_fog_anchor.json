@@ -6,7 +6,7 @@
       "textures": [
         "Texture.alpha_fog_shell"
       ],
-      "ignore_lighting": true,
+      "ignore_lighting": false,
       "on_fire_color": {},
       "materials": [
         {
@@ -22,7 +22,7 @@
       "textures": [
         "Texture.alpha_fog_shell"
       ],
-      "ignore_lighting": true,
+      "ignore_lighting": false,
       "on_fire_color": {},
       "materials": [
         {

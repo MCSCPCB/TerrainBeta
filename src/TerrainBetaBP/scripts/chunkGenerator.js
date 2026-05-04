@@ -26,6 +26,7 @@ let BEDROCK_BLOCK_MAP = {};
 let CHUNK_SIZE = 16;
 let CHUNK_HEIGHT = 128;
 let MIN_WORLD_Y = 0;
+let WORLD_VERTICAL_OFFSET = 0;
 const LOAD_RADIUS = 2;
 const FULL_DETAIL_DISTANCE = 3;
 const FOREGROUND_PRIORITY_NONE = 99;
@@ -46,7 +47,6 @@ const MAX_BACKGROUND_DECORATION_DEFERRED_RUNS_PER_STEP = 4; // 3
 const MAX_BACKGROUND_VERTICAL_BLOCKS_PER_OPERATION = 24; // 16
 const MAX_BACKGROUND_WORLD_WRITES_PER_TICK = 5;
 const MAX_BACKGROUND_DECORATION_PLANS_PER_TICK = 2;
-const MAX_SAFE_DEFAULT_SPAWN_DROP_BLOCKS = 3;
 let BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
   ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
   : 3;
@@ -698,46 +698,6 @@ function findInitializationLandingLocationInChunk(
   };
 }
 
-function shouldReplaceDefaultSpawnWithInitializationLanding(state, dimension, force = false) {
-  if (state.dimensionId !== "overworld") {
-    return false;
-  }
-
-  if (force) {
-    return true;
-  }
-
-  try {
-    const defaultSpawnLocation = world.getDefaultSpawnLocation();
-    const landingLocation = getTopmostLandingLocation(
-      dimension,
-      defaultSpawnLocation.x,
-      defaultSpawnLocation.z,
-    );
-    if (!landingLocation) {
-      return true;
-    }
-
-    const landingDrop = defaultSpawnLocation.y - landingLocation.y;
-    return landingDrop < 0 || landingDrop > MAX_SAFE_DEFAULT_SPAWN_DROP_BLOCKS;
-  } catch (_error) {
-    return true;
-  }
-}
-
-function tryUpdateInitializationReturnSpawnLocation(state, dimension, landingLocation, force = false) {
-  if (!landingLocation || !shouldReplaceDefaultSpawnWithInitializationLanding(state, dimension, force)) {
-    return false;
-  }
-
-  try {
-    world.setDefaultSpawnLocation(landingLocation);
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
 function isInitializationTargetComplete(dimension, target) {
   const chunkState = getChunkState(target.x, target.z);
   if (!chunkState.hasPopulatedChunk) {
@@ -803,8 +763,8 @@ function placeVerticalRun(dimension, x, z, startY, endY, typeId) {
 
   dimension.fillBlocks(
     new BlockVolume(
-      { x, y: startY, z },
-      { x, y: endY, z },
+      { x, y: startY + WORLD_VERTICAL_OFFSET, z },
+      { x, y: endY + WORLD_VERTICAL_OFFSET, z },
     ),
     getPermutation(typeId),
   );
@@ -1255,6 +1215,9 @@ function configureGenerationRuntime() {
   CHUNK_SIZE = activeWorldGenerator.dimensions.chunkSize;
   CHUNK_HEIGHT = activeWorldGenerator.dimensions.chunkHeight;
   MIN_WORLD_Y = activeWorldGenerator.dimensions.minWorldY;
+  WORLD_VERTICAL_OFFSET = Number.isInteger(activeWorldGenerator.worldVerticalOffset)
+    ? activeWorldGenerator.worldVerticalOffset
+    : 0;
   BACKGROUND_LOOKAHEAD_CHUNKS = Number.isInteger(activeRuntimeProfile.backgroundLookaheadChunks)
     ? Math.max(0, activeRuntimeProfile.backgroundLookaheadChunks)
     : 3;
@@ -1821,7 +1784,11 @@ function writeListVolumeBatch(dimension, chunkX, chunkZ, runs, startCursor, maxR
     }
 
     for (let y = run.startY; y <= run.endY; y += 1) {
-      locations.push({ x: startX + run.x, y, z: startZ + run.z });
+      locations.push({
+        x: startX + run.x,
+        y: y + WORLD_VERTICAL_OFFSET,
+        z: startZ + run.z,
+      });
     }
   }
 
@@ -2018,13 +1985,34 @@ function finishDecoratedChunk(task) {
   addTerrainChunk(task.chunkX, task.chunkZ);
   populatedChunks.add(task.chunkX, task.chunkZ);
   pendingChunkTasks.delete(task.key);
+  finalizeGeneratorChunk(task);
 }
 
 function finishBackgroundDecoratedChunk(task) {
   addTerrainChunk(task.chunkX, task.chunkZ);
   populatedChunks.add(task.chunkX, task.chunkZ);
   backgroundChunkTasks.delete(task.key);
+  finalizeGeneratorChunk(task);
   logBackgroundChunkCompleted(task.chunkX, task.chunkZ);
+}
+
+function finalizeGeneratorChunk(task) {
+  if (!activeGenerator || typeof activeGenerator.finalizePopulatedChunk !== "function") {
+    return;
+  }
+
+  try {
+    activeGenerator.finalizePopulatedChunk(
+      world.getDimension("overworld"),
+      task.chunkX,
+      task.chunkZ,
+      WORLD_VERTICAL_OFFSET,
+    );
+  } catch (error) {
+    console.warn(
+      `Generator finalize hook failed for chunk ${task.chunkX},${task.chunkZ}: ${error}`,
+    );
+  }
 }
 
 function handOffPendingChunkTasksToBackground(currentPass) {
@@ -2883,7 +2871,6 @@ function advanceInitializationReturnState(player) {
   if (!searchState) {
     const directLandingLocation = getTopmostLandingLocation(dimension, state.x, state.z);
     if (teleportPlayerToLandingLocation(player, dimension, directLandingLocation, false)) {
-      tryUpdateInitializationReturnSpawnLocation(state, dimension, directLandingLocation, false);
       clearInitializationReturnState(player);
       return true;
     }
@@ -2912,7 +2899,6 @@ function advanceInitializationReturnState(player) {
       return false;
     }
 
-    tryUpdateInitializationReturnSpawnLocation(state, dimension, searchResult.landingLocation, true);
     clearInitializationReturnState(player);
     return true;
   }
