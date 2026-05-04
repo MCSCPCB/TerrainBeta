@@ -121,7 +121,7 @@ function createEntityAnchor(typeId, x, y, z) {
 
 const REGION_PROFILE_DEFINITIONS = Object.freeze([
   Object.freeze({
-    signature: 0xc0dad0561864f47cn,
+    signature: -4550095405309430660n,
     bounds: Object.freeze({
       minX: -66,
       maxX: 22,
@@ -575,7 +575,7 @@ function extractCenterChunkFromRegion(region, chunkX, chunkZ) {
 }
 
 function getRegionProfileSignature(seed64, mapGenSeeds) {
-  return BigInt.asUintN(
+  return BigInt.asIntN(
     64,
     (seed64 * REGION_PROFILE_SIGNATURE_SALT_A)
     ^ (mapGenSeeds.xSeed * REGION_PROFILE_SIGNATURE_SALT_B)
