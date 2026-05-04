@@ -154,13 +154,6 @@ const REGION_PROFILE_DEFINITIONS = Object.freeze([
       createRegionPatch(BLOCKS.AIR, -49, 76, -216, -50, 77, -181),
     ]),
     entityAnchors: Object.freeze([
-      // Armor stand generation entry point.
-      // Keep this list explicit and centralized: these anchors are spawned only
-      // after the owning chunk has fully written its terrain and decoration
-      // deltas to the world, which prevents later block passes from displacing
-      // them. Future armor stand marker work should extend this list and reuse
-      // the same duplicate-suppressed post-population path instead of adding
-      // scattered one-off entity spawns throughout terrain generation code.
       createEntityAnchor("minecraft:armor_stand", -16, 72, -293),
     ]),
   }),
