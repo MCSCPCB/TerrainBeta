@@ -182,6 +182,35 @@ function assertBackgroundSessionParity() {
   console.log("  PASS background terrain and decoration sessions");
 }
 
+function assertBackgroundSessionParityWithFormOptionsDisabled() {
+  console.log("Disabled-option background session checks");
+
+  const generator = new Beta173SkyBedrockGenerator("123456789", {
+    caves: false,
+    ores: false,
+    lakes: false,
+    trees: false,
+    flora: false,
+    springs: false,
+    snow: false,
+  });
+  const terrain = generator.generateTerrainChunk(0, 0);
+  const decorated = generator.decorateTerrainChunk(terrain, { rebuildHeightmap: false });
+  const decorationSession = generator.createBackgroundDecorationSession(terrain);
+
+  advanceSessionToCompletion(
+    decorationSession,
+    (session) => generator.advanceBackgroundDecorationSession(session),
+    "beta173 sky disabled-option background decoration session",
+  );
+
+  if (!arraysEqual(decorated.blocks, decorationSession.decoratedBlocks)) {
+    throw new Error("disabled-option background decoration session blocks mismatch");
+  }
+
+  console.log("  PASS background decoration remains stable with form options disabled");
+}
+
 function assertFarlandsCoordinateOverride() {
   console.log("Farlands coordinate override checks");
 
@@ -214,6 +243,7 @@ function main() {
   assertUndecoratedPassthrough();
   assertDecoratedReferences();
   assertBackgroundSessionParity();
+  assertBackgroundSessionParityWithFormOptionsDisabled();
   assertFarlandsCoordinateOverride();
 }
 

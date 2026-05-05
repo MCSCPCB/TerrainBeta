@@ -35,6 +35,19 @@ function arraysEqual(left, right) {
   return true;
 }
 
+function advanceSessionToCompletion(session, advance, label, maxSteps = 20000) {
+  let steps = 0;
+  while (!session.complete) {
+    if (!advance(session)) {
+      throw new Error(`${label} stalled before completion`);
+    }
+    steps += 1;
+    if (steps > maxSteps) {
+      throw new Error(`${label} exceeded ${maxSteps} steps`);
+    }
+  }
+}
+
 function assertMappedBlocks(chunk, label) {
   for (const blockId of chunk.blocks) {
     if (!(blockId in BEDROCK_BLOCK_MAP)) {
@@ -184,6 +197,35 @@ function assertPopulationNeighborhoodStability() {
   console.log(`  PASS (${chunkX}, ${chunkZ}) remains stable after neighbor generation`);
 }
 
+function assertBackgroundSessionParityWithFormOptionsDisabled() {
+  console.log("Background session disabled-option checks");
+
+  const generator = new Beta173BedrockGenerator("123456789", {
+    caves: false,
+    ores: false,
+    lakes: false,
+    trees: false,
+    flora: false,
+    springs: false,
+    snow: false,
+  });
+  const terrain = generator.generateTerrainChunk(0, 0);
+  const decorated = generator.decorateTerrainChunk(terrain, { rebuildHeightmap: false });
+  const decorationSession = generator.createBackgroundDecorationSession(terrain);
+
+  advanceSessionToCompletion(
+    decorationSession,
+    (session) => generator.advanceBackgroundDecorationSession(session),
+    "beta173 disabled-option background decoration session",
+  );
+
+  if (!arraysEqual(decorated.blocks, decorationSession.decoratedBlocks)) {
+    throw new Error("disabled-option background decoration session blocks mismatch");
+  }
+
+  console.log("  PASS background decoration remains stable with form options disabled");
+}
+
 function assertExtendedDecoratorCoverage() {
   console.log("Extended decorator coverage checks");
 
@@ -250,6 +292,7 @@ function main() {
   assertFarlandsSanity();
   assertFarlandsCoordinateOverride();
   assertPopulationNeighborhoodStability();
+  assertBackgroundSessionParityWithFormOptionsDisabled();
   assertExtendedDecoratorCoverage();
   assertFloraCoverage();
 }

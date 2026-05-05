@@ -709,6 +709,9 @@ export class Beta173BedrockGenerator {
 
       if (!session.currentFeatureSession) {
         while (session.phase === "features" && session.sourceCursor < 4) {
+          if (!session.populationRandom) {
+            return true;
+          }
           const startResult = this.startBackgroundDecorationStage(session);
           if (startResult === "skip") {
             this.advanceBackgroundDecorationSource(session);
