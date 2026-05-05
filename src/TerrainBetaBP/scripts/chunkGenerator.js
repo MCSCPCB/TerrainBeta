@@ -584,6 +584,102 @@ function teleportPlayerToLandingLocation(player, dimension, landingLocation, che
   return true;
 }
 
+function logInitializationReturnLanding(player, landingLocation, mode) {
+  if (!landingLocation) {
+    return;
+  }
+
+  console.warn(
+    `Initialization return landing (${mode}) for ${player.name}: `
+    + `x=${landingLocation.x}, y=${landingLocation.y}, z=${landingLocation.z}`,
+  );
+}
+
+function getCurrentDefaultSpawnLocation() {
+  try {
+    return world.getDefaultSpawnLocation();
+  } catch (_error) {
+    return null;
+  }
+}
+
+function formatSpawnLocation(location) {
+  if (!location) {
+    return "unavailable";
+  }
+
+  return `x=${location.x}, y=${location.y}, z=${location.z}`;
+}
+
+function isOverworldDimensionId(dimensionId) {
+  return dimensionId === "overworld" || dimensionId === "minecraft:overworld";
+}
+
+function shouldReplaceDefaultSpawnWithInitializationLanding(
+  state,
+  dimension,
+  currentDefaultSpawnLocation,
+  force = false,
+) {
+  if (!isOverworldDimensionId(state.dimensionId)) {
+    return false;
+  }
+
+  if (force) {
+    return true;
+  }
+
+  if (!currentDefaultSpawnLocation) {
+    return true;
+  }
+
+  return getTopmostLandingLocation(
+    dimension,
+    currentDefaultSpawnLocation.x,
+    currentDefaultSpawnLocation.z,
+  ) === null;
+}
+
+function tryUpdateInitializationReturnSpawnLocation(state, dimension, landingLocation, mode, force = false) {
+  if (!landingLocation) {
+    return false;
+  }
+
+  const originalSpawnLocation = getCurrentDefaultSpawnLocation();
+  const spawnLocation = {
+    x: landingLocation.x,
+    y: landingLocation.y,
+    z: landingLocation.z,
+  };
+  let modified = false;
+  let updateError = "";
+
+  if (shouldReplaceDefaultSpawnWithInitializationLanding(
+    state,
+    dimension,
+    originalSpawnLocation,
+    force,
+  )) {
+    try {
+      world.setDefaultSpawnLocation(spawnLocation);
+      modified = true;
+    } catch (error) {
+      updateError = `${error}`;
+    }
+  }
+
+  const currentSpawnLocation = getCurrentDefaultSpawnLocation();
+  console.warn(`Initialization default spawn original (${mode}): ${formatSpawnLocation(originalSpawnLocation)}`);
+  console.warn(`Initialization default spawn target (${mode}): ${formatSpawnLocation(spawnLocation)}`);
+  console.warn(`Initialization default spawn modified (${mode}): ${modified}`);
+  console.warn(`Initialization default spawn current (${mode}): ${formatSpawnLocation(currentSpawnLocation)}`);
+  if (updateError) {
+    console.warn(`Initialization default spawn update failed (${mode}): ${updateError}`);
+  }
+
+  return modified;
+}
+
 function clampChunkLocalCoordinate(value) {
   return Math.max(0, Math.min(CHUNK_SIZE - 1, value));
 }
@@ -2861,7 +2957,7 @@ function advanceInitializationReturnState(player) {
     return false;
   }
 
-  if (state.dimensionId === "overworld" && !advanceInitializationChunkTarget(dimension, target)) {
+  if (isOverworldDimensionId(state.dimensionId) && !advanceInitializationChunkTarget(dimension, target)) {
     if (searchState) {
       setInitializationReturnState(player, state);
     }
@@ -2871,6 +2967,14 @@ function advanceInitializationReturnState(player) {
   if (!searchState) {
     const directLandingLocation = getTopmostLandingLocation(dimension, state.x, state.z);
     if (teleportPlayerToLandingLocation(player, dimension, directLandingLocation, false)) {
+      logInitializationReturnLanding(player, directLandingLocation, "direct");
+      tryUpdateInitializationReturnSpawnLocation(
+        state,
+        dimension,
+        directLandingLocation,
+        "direct",
+        false,
+      );
       clearInitializationReturnState(player);
       return true;
     }
@@ -2899,6 +3003,14 @@ function advanceInitializationReturnState(player) {
       return false;
     }
 
+    logInitializationReturnLanding(player, searchResult.landingLocation, "search");
+    tryUpdateInitializationReturnSpawnLocation(
+      state,
+      dimension,
+      searchResult.landingLocation,
+      "search",
+      true,
+    );
     clearInitializationReturnState(player);
     return true;
   }
