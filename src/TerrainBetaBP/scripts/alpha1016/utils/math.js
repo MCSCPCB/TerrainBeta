@@ -1,9 +1,6 @@
 export const INT_MIN = -2147483648;
 export const INT_MAX = 2147483647;
 
-// Alpha 1.0.16_02 uses the same legacy ImprovedNoise overflow boundary as old
-// Beta terrain for its main 684.412 limit-noise path. The first positive X/Z
-// coordinate where the classic far-lands artifact becomes visible is 12,550,821.
 export const DEFAULT_FARLANDS_COORDINATE = 12550821;
 
 const farlandsConfig = {

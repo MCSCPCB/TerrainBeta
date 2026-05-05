@@ -1,4 +1,3 @@
-// Bedrock placement behavior shared by whichever generator is active.
 export const BLOCK_GENERATION_CONFIG = {
   fallbackBlockTypeId: "minecraft:diamond_block",
   deferredBlockTypeIds: [
