@@ -793,7 +793,7 @@ function buildHeightmapColumns(blocks, heightmap, startX = 0, columnCount = CHUN
 
   for (let x = startX; x < endX; x += 1) {
     for (let z = 0; z < CHUNK_SIZE; z += 1) {
-      let height = CHUNK_HEIGHT - 1;
+      let height = CHUNK_HEIGHT;
       while (height > 0) {
         if (getBlockOpacity(blocks[chunkBlockIndex(x, height - 1, z)]) !== 0) {
           break;

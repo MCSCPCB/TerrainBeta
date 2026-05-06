@@ -23,6 +23,17 @@ function arraysEqual(left, right) {
   return true;
 }
 
+function findTopNonAirY(blocks, chunkX, chunkZ) {
+  const columnBase = (chunkX * 16 + chunkZ) * 128;
+  for (let y = 127; y >= 0; y -= 1) {
+    const blockId = blocks[columnBase + y];
+    if (blockId !== 0) {
+      return y;
+    }
+  }
+  return -1;
+}
+
 function testDeterministicChunk() {
   const generator = new Alpha1016BedrockGenerator("123456789");
   const first = generator.generateChunk(0, 0);
@@ -89,12 +100,35 @@ function testFarlandsCoordinateOverride() {
   setNoiseFarlandsCoordinate(DEFAULT_FARLANDS_COORDINATE);
 }
 
+function testHeightmapIncludesTopLayer() {
+  const generator = new Alpha1016BedrockGenerator("123456789", {
+    farlandsCoordinate: 500,
+  });
+  const chunk = generator.generateTerrainChunk(32, 0);
+  let foundCeilingColumn = false;
+
+  for (let x = 0; x < 16; x += 1) {
+    for (let z = 0; z < 16; z += 1) {
+      const topSolidY = findTopNonAirY(chunk.blocks, x, z);
+      const height = chunk.heightmap[x * 16 + z];
+      assert(height === topSolidY + 1, `heightmap mismatch at local column (${x}, ${z})`);
+      if (topSolidY === 127) {
+        foundCeilingColumn = true;
+        assert(height === 128, `expected ceiling column (${x}, ${z}) to produce height 128`);
+      }
+    }
+  }
+
+  assert(foundCeilingColumn, "expected farlands regression chunk to include at least one ceiling column");
+}
+
 function main() {
   testDeterministicChunk();
   testBackgroundTerrainParity();
   testBackgroundDecorationParity();
   testSnowWorldSmoke();
   testFarlandsCoordinateOverride();
+  testHeightmapIncludesTopLayer();
   console.log("alpha1016 validate: PASS");
 }
 

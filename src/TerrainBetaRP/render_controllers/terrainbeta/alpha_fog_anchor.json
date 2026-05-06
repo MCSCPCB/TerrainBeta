@@ -24,10 +24,10 @@
       ],
       "ignore_lighting": false,
       "overlay_color": {
-        "r": 0,
-        "g": 0,
-        "b": 0,
-        "a": "q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0)"
+        "r": "temp.g = -math.cos(q.time_of_day * 360.0); temp.u = temp.g >= -0.4 && temp.g <= 0.4 ? temp.g / 0.8 + 0.5 : 0; temp.s = 1 - (1 - math.sin(temp.u * 180.0)) * 0.99; temp.warm = temp.g >= -0.4 && temp.g <= 0.4 ? temp.s * temp.s : 0; temp.dark = q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0); temp.total = temp.dark + temp.warm * (1 - temp.dark); return temp.total > 0 ? ((temp.u * 0.3 + 0.7) * temp.warm * (1 - temp.dark) / temp.total) : 0;",
+        "g": "temp.g = -math.cos(q.time_of_day * 360.0); temp.u = temp.g >= -0.4 && temp.g <= 0.4 ? temp.g / 0.8 + 0.5 : 0; temp.s = 1 - (1 - math.sin(temp.u * 180.0)) * 0.99; temp.warm = temp.g >= -0.4 && temp.g <= 0.4 ? temp.s * temp.s : 0; temp.dark = q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0); temp.total = temp.dark + temp.warm * (1 - temp.dark); return temp.total > 0 ? (((temp.u * temp.u) * 0.7 + 0.2) * temp.warm * (1 - temp.dark) / temp.total) : 0;",
+        "b": "temp.g = -math.cos(q.time_of_day * 360.0); temp.u = temp.g >= -0.4 && temp.g <= 0.4 ? temp.g / 0.8 + 0.5 : 0; temp.s = 1 - (1 - math.sin(temp.u * 180.0)) * 0.99; temp.warm = temp.g >= -0.4 && temp.g <= 0.4 ? temp.s * temp.s : 0; temp.dark = q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0); temp.total = temp.dark + temp.warm * (1 - temp.dark); return temp.total > 0 ? (0.2 * temp.warm * (1 - temp.dark) / temp.total) : 0;",
+        "a": "temp.g = -math.cos(q.time_of_day * 360.0); temp.u = temp.g >= -0.4 && temp.g <= 0.4 ? temp.g / 0.8 + 0.5 : 0; temp.s = 1 - (1 - math.sin(temp.u * 180.0)) * 0.99; temp.warm = temp.g >= -0.4 && temp.g <= 0.4 ? temp.s * temp.s : 0; temp.dark = q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0); return temp.dark + temp.warm * (1 - temp.dark);"
       },
       "on_fire_color": {},
       "materials": [
