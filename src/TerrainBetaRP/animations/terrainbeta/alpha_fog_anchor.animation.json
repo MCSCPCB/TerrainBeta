@@ -15,6 +15,13 @@
             "- query.body_y_rotation",
             0.0
           ]
+        },
+        "skyboxColorWrite": {
+          "scale": [
+            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
+            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
+            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))"
+          ]
         }
       }
     }

@@ -10,10 +10,7 @@
       "on_fire_color": {},
       "materials": [
         {
-          "*": "Material.default"
-        },
-        {
-          "skyboxdepthtest*": "Material.skyboxdepthtest"
+          "*": "Material.skyboxdepthtest"
         }
       ]
     },
@@ -27,15 +24,12 @@
         "r": 0,
         "g": 0,
         "b": 0,
-        "a": "temp.g = -math.cos(q.time_of_day * 360.0); temp.u = temp.g >= -0.4 && temp.g <= 0.4 ? temp.g / 0.8 + 0.5 : 0; temp.s = 1 - (1 - math.sin(temp.u * 180.0)) * 0.99; temp.warm = temp.g >= -0.4 && temp.g <= 0.4 ? temp.s * temp.s : 0; temp.dark = q.time_of_day >= 0.68 ? math.hermite_blend(math.clamp((q.time_of_day - 0.68) / 0.14, 0, 1)) : (q.time_of_day <= 0.32 ? (1 - math.hermite_blend(math.clamp((q.time_of_day - 0.18) / 0.14, 0, 1))) : 0); return temp.dark + temp.warm * (1 - temp.dark);"
+        "a": "temp.edge = q.time_of_day <= 0.5 ? q.time_of_day : 1 - q.time_of_day; temp.alpha = temp.edge < 0.180556 ? 1.0 : 0.0; temp.alpha = temp.edge >= 0.180556 && temp.edge < 0.190972 ? 1.0 + (0.675 - 1.0) * math.hermite_blend(math.clamp((temp.edge - 0.180556) / 0.010416, 0, 1)) : temp.alpha; temp.alpha = temp.edge >= 0.190972 && temp.edge < 0.211806 ? 0.675 + (0.4 - 0.675) * math.hermite_blend(math.clamp((temp.edge - 0.190972) / 0.020834, 0, 1)) : temp.alpha; temp.alpha = temp.edge >= 0.211806 && temp.edge < 0.260417 ? 0.4 + (0.02 - 0.4) * math.hermite_blend(math.clamp((temp.edge - 0.211806) / 0.048611, 0, 1)) : temp.alpha; temp.alpha = temp.edge >= 0.260417 && temp.edge < 0.263889 ? 0.02 * (1 - math.hermite_blend(math.clamp((temp.edge - 0.260417) / 0.003472, 0, 1))) : temp.alpha; return temp.alpha;"
       },
       "on_fire_color": {},
       "materials": [
         {
-          "*": "Material.default"
-        },
-        {
-          "skyboxcolorwrite*": "Material.skyboxcolorwrite"
+          "*": "Material.skyboxcolorwrite"
         }
       ]
     }
