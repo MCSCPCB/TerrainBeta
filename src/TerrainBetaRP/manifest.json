@@ -61,3 +61,57 @@
     }
   ]
 }
+
+{
+    "format_version": 2,
+    "header": {
+        "description": "Changes textures, sounds, animations, and countless other features to match Java Edition.",
+        "name": "Java Aspects",
+        "uuid": "39e4614e-335c-4dbd-a080-7b9fb7a16d57",
+        "version": [
+            6,
+            2,
+            0
+        ],
+        "min_engine_version": [
+            1,
+            21,
+            50
+        ]
+    },
+    "modules": [
+        {
+            "description": "Changes textures, sounds, animations, and countless other features to match Java Edition.",
+            "type": "resources",
+            "uuid": "de421818-e892-4808-b8d3-4fc8ebae7756",
+            "version": [
+                6,
+                2,
+                0
+            ]
+        }
+    ],
+    "settings": [
+        {
+            "type": "label",
+            "text": "Select which texture style Java Aspects should match."
+        },
+        {
+            "type": "label",
+            "text": "To use Programmer Art (Classic Textures), you also have to download the free Minecraft Classic Texture Pack from the Marketplace. Apply the Minecraft Classic Texture Pack below Java Aspects."
+        }
+    ],
+    "subpacks": [
+   
+        {
+            "folder_name": "no_fog",
+            "name": "Programmer Art (Classic Textures)\n\nThe classic look of Minecraft.",
+            "memory_tier": 1
+        },
+        {
+            "folder_name": "default",
+            "name": "Default Textures\n\nThe default look and feel of Minecraft.",
+            "memory_tier": 1
+        }
+    ]
+}
