@@ -9,7 +9,7 @@
         "skyboxdepthtest": "skyboxdepthtest"
       },
       "textures": {
-        "alpha_fog_shell": "textures/entity/terrainbeta/alpha_fog_shell"
+        "alpha_fog_skybox": "textures/entity/terrainbeta/alpha_fog_skybox"
       },
       "geometry": {
         "alpha_fog_clip_color": "geometry.terrainbeta.alpha_fog_clip_color",
@@ -23,11 +23,11 @@
           "v.cam_pos_x = 0;",
           "v.cam_pos_y = 0;",
           "v.cam_pos_z = 0;",
-          "v.tb_air_shell_visible = 0;"
+          "v.tb_air_skybox_visible = 0;"
         ],
         "pre_animation": [
           "t.cam_x_rot = q.rotation_to_camera(0) ; t.cam_y_rot = q.rotation_to_camera(1) - q.body_y_rotation ; t.cam_distance = q.distance_from_camera ; v.cam_pos_x = -t.cam_distance * math.sin(t.cam_y_rot) * math.cos(t.cam_x_rot);v.cam_pos_y = t.cam_distance * math.sin(-t.cam_x_rot);v.cam_pos_z = t.cam_distance * math.cos(t.cam_y_rot) * math.cos(t.cam_x_rot);",
-          "v.tb_air_shell_visible = !q.is_in_water && !q.is_in_lava;"
+          "v.tb_air_skybox_visible = !q.is_in_water && !q.is_in_lava;"
         ],
         "animate": [
           "offset"
@@ -36,10 +36,10 @@
       },
       "render_controllers": [
         {
-          "controller.render.terrainbeta.alpha_fog_anchor.depth": "v.tb_air_shell_visible"
+          "controller.render.terrainbeta.alpha_fog_anchor.depth": "v.tb_air_skybox_visible"
         },
         {
-          "controller.render.terrainbeta.alpha_fog_anchor.color": "v.tb_air_shell_visible"
+          "controller.render.terrainbeta.alpha_fog_anchor.color": "v.tb_air_skybox_visible"
         }
       ]
     }
