@@ -1,92 +1,28 @@
 {
-  "format_version": 2,
-  "metadata": {
-    "authors": [
-      "MINECRAFT-SCPCB"
-    ],
-    "product_type": "addon"
-  },
-  "header": {
-    "name": "Terrain Beta Resources Pack",
-    "description": "Java Alpha/Beta world generation and more!\n§iMade by: MINECRAFT-SCPCB",
-    "uuid": "39e4614e-335c-4dbd-a080-7b9fb7a16d57",
-    "version": [
-      1,
-      0,
-      0
-    ],
-    "min_engine_version": [
-      1,
-      21,
-      101
-    ]
-  },
-  "modules": [
-    {
-      "type": "resources",
-      "uuid": "de421818-e892-4808-b8d3-4fc8ebae7756",
-      "version": [
-        1,
-        0,
-        0
-      ]
-    }
-  ],
-  "settings": [
-    {
-      "type": "label",
-      "text": "Alpha Fog settings"
-    }
-  ],
-  "subpacks": [
-    {
-      "folder_name": "no_fog",
-      "name": "Alpha Fog Disabled",
-      "memory_tier": 1
-    },
-    {
-      "folder_name": "default",
-      "name": "Alpha Fog Enabled",
-      "memory_tier": 1
-    }
-  ],
-  "dependencies": [
-    {
-      "uuid": "b82cb4e5-889a-4538-bd92-c24546a99b52",
-      "version": [
-        1,
-        0,
-        0
-      ]
-    }
-  ]
-}
-
-{
     "format_version": 2,
     "header": {
-        "description": "Changes textures, sounds, animations, and countless other features to match Java Edition.",
-        "name": "Java Aspects",
+        "description": "Java Alpha/Beta world generation and more!\n§iMade by: MINECRAFT-SCPCB",
+        "name": "Terrain Beta Resources Pack",
         "uuid": "39e4614e-335c-4dbd-a080-7b9fb7a16d57",
         "version": [
-            6,
-            2,
+            1,
+            0,
             0
         ],
         "min_engine_version": [
             1,
             21,
-            50
+            101
         ]
     },
     "modules": [
         {
-            "description": "Changes textures, sounds, animations, and countless other features to match Java Edition.",
+            "description": "Java Alpha/Beta world generation and more!\n§iMade by: MINECRAFT-SCPCB",
             "type": "resources",
             "uuid": "de421818-e892-4808-b8d3-4fc8ebae7756",
             "version": [
-                6,
-                2,
+                1,
+                0,
                 0
             ]
         }
@@ -94,23 +30,23 @@
     "settings": [
         {
             "type": "label",
-            "text": "Select which texture style Java Aspects should match."
+            "text": "Select Fog Settings."
         },
         {
             "type": "label",
-            "text": "To use Programmer Art (Classic Textures), you also have to download the free Minecraft Classic Texture Pack from the Marketplace. Apply the Minecraft Classic Texture Pack below Java Aspects."
+            "text": "Default Enables Fog."
         }
     ],
     "subpacks": [
    
         {
             "folder_name": "no_fog",
-            "name": "Programmer Art (Classic Textures)\n\nThe classic look of Minecraft.",
+            "name": "Fog Disabled.",
             "memory_tier": 1
         },
         {
             "folder_name": "default",
-            "name": "Default Textures\n\nThe default look and feel of Minecraft.",
+            "name": "Fog Enabled.",
             "memory_tier": 1
         }
     ]
