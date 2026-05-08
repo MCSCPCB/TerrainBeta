@@ -1,6 +1,6 @@
 # Terrain Beta
 
-欢迎来到 Terrain Beta！这是一个**基岩版**Add-on，灵感来源于 [Modern Beta](https://modrinth.com/mod/moderner-beta)，致力于复刻多个经典 Minecraft 版本的世界地形生成。
+欢迎来到 Terrain Beta！这是一个**基岩版**Add-on，灵感来源于 [Moderner Beta](https://modrinth.com/mod/moderner-beta)，致力于复刻多个经典 Minecraft 版本的世界地形生成。
 
 ## 特性
 - 复刻多个旧版本的世界生成，例如 **Alpha 1.0.16_02**、**Beta 1.7.3**，以及一些特殊生成器（如 Beta 1.7.3 的**Sky Dimension**）。

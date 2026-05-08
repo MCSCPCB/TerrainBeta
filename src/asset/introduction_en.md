@@ -1,6 +1,6 @@
 # Terrain Beta
 
-Welcome to Terrain Beta! This is a **Bedrock Edition** Add-on inspired by [Modern Beta](https://modrinth.com/mod/moderner-beta), dedicated to recreating world terrain generation from multiple classic Minecraft versions.
+Welcome to Terrain Beta! This is a **Bedrock Edition** Add-on inspired by [Moderner Beta](https://modrinth.com/mod/moderner-beta), dedicated to recreating world terrain generation from multiple classic Minecraft versions.
 
 ## Features
 - Recreates world generation from several older versions, such as **Alpha 1.0.16_02**, **Beta 1.7.3**, as well as some special generators (such as **Beta 1.7.3 Sky Dimension**).
