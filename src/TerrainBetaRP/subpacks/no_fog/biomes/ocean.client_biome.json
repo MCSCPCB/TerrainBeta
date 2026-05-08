@@ -1,0 +1,22 @@
+{
+  "format_version": "1.21.40",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "ocean"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#79C05A"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#59AE30"
+      },
+      "minecraft:water_appearance": {
+        "surface_color": "#3F76E4"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#C0C0FF"
+      }
+    }
+  }
+}

@@ -26,8 +26,7 @@
           "v.tb_air_skybox_visible = 0;"
         ],
         "pre_animation": [
-          "t.cam_x_rot = q.rotation_to_camera(0) ; t.cam_y_rot = q.rotation_to_camera(1) - q.body_y_rotation ; t.cam_distance = q.distance_from_camera ; v.cam_pos_x = -t.cam_distance * math.sin(t.cam_y_rot) * math.cos(t.cam_x_rot);v.cam_pos_y = t.cam_distance * math.sin(-t.cam_x_rot);v.cam_pos_z = t.cam_distance * math.cos(t.cam_y_rot) * math.cos(t.cam_x_rot);",
-          "v.tb_air_skybox_visible = 1;"
+          "v.tb_air_skybox_visible = 0;"
         ],
         "animate": [
           "offset"
