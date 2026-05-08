@@ -33,15 +33,21 @@
       ]
     }
   ],
-  "subpacks": [
+  "settings": [
     {
-      "folder_name": "default",
-      "name": "Alpha Fog Enabled",
-      "memory_tier": 0
-    },
+      "type": "label",
+      "text": "Alpha Fog settings"
+    }
+  ],
+  "subpacks": [
     {
       "folder_name": "no_fog",
       "name": "Alpha Fog Disabled",
+      "memory_tier": 1
+    },
+    {
+      "folder_name": "default",
+      "name": "Alpha Fog Enabled",
       "memory_tier": 1
     }
   ],
