@@ -43,11 +43,6 @@
       "folder_name": "no_fog",
       "name": "Alpha Fog Disabled",
       "memory_tier": 1
-    },
-    {
-      "folder_name": "default",
-      "name": "Alpha Fog Enabled",
-      "memory_tier": 2
     }
   ],
   "dependencies": [
