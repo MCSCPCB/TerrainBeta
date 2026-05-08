@@ -18,9 +18,9 @@
         },
         "skyboxColorWrite": {
           "scale": [
-            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
-            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
-            "1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))"
+            "q.time_of_day >= 0.291667 && q.time_of_day <= 0.736111 ? 16.0 : 1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
+            "q.time_of_day >= 0.291667 && q.time_of_day <= 0.736111 ? 16.0 : 1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))",
+            "q.time_of_day >= 0.291667 && q.time_of_day <= 0.736111 ? 16.0 : 1.0 + 15.0 * math.abs(math.cos(q.time_of_day * 360.0)) * math.abs(math.cos(q.time_of_day * 360.0))"
           ]
         }
       }
